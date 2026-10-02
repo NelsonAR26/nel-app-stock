@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Nel App Stock · Sancia</title>
+<title>Nel App Stock by Nelson Carrizo · Sancia</title>
 <meta name="theme-color" content="#273046">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
@@ -9,9 +9,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Jost:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-:root{--ink:#EEF1F7;--mute:#A9B3C7;--gold:#E3C08D;--mint:#5FD4A5;--bad:#FF8A98;--warn:#F2C879;--blue:#7FA6FF;--g:rgba(27,34,52,.76);--line:rgba(255,255,255,.12);--serif:'Cormorant Garamond',Georgia,serif;--sans:'Jost',system-ui,sans-serif}
+:root{--ink:#EEF1F7;--mute:#BAC4D8;--gold:#E3C08D;--mint:#5FD4A5;--bad:#FF8A98;--warn:#F2C879;--blue:#7FA6FF;--g:rgba(27,34,52,.76);--line:rgba(255,255,255,.12);--serif:'Cormorant Garamond',Georgia,serif;--sans:'Jost',system-ui,sans-serif}
 *{box-sizing:border-box;margin:0}[hidden]{display:none!important}
-body{min-height:100vh;color:var(--ink);font:400 15px/1.5 var(--sans);background:radial-gradient(1100px 560px at 15% -10%,#9AA8C055,transparent),linear-gradient(145deg,#6A7894 0%,#414D67 45%,#222A3D 100%) fixed;padding-bottom:110px}
+body{min-height:100vh;color:var(--ink);font:400 16px/1.55 var(--sans);-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;background:radial-gradient(1100px 560px at 15% -10%,#9AA8C055,transparent),linear-gradient(145deg,#6A7894 0%,#414D67 45%,#222A3D 100%) fixed;padding-bottom:110px}
 button,input,select{font:inherit;color:inherit}button{cursor:pointer}
 :focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .glass{background:var(--g);border:1px solid var(--line);border-radius:20px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 20px 50px #0003,inset 0 1px 0 #ffffff14}
@@ -24,7 +24,7 @@ button,input,select{font:inherit;color:inherit}button{cursor:pointer}
 .r{display:flex;gap:8px}
 .ghost{background:#ffffff12;border:1px solid var(--line);border-radius:99px;padding:7px 15px;font-size:14px}.ghost:hover{background:#ffffff22}
 main{max-width:1180px;margin:0 auto;padding:0 12px}
-.head h2{font:600 38px/1.1 var(--serif)}.head p{color:var(--mute);margin:2px 0 14px}
+.head h2{font:700 46px/1.05 var(--serif);letter-spacing:-.01em}.head p{color:var(--mute);font-size:16.5px;margin:4px 0 16px}
 .car{display:flex;align-items:center;gap:8px;margin-bottom:12px}
 .chips{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;flex:1;padding:2px}.chips::-webkit-scrollbar{display:none}
 .arr{flex:none;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:#ffffff12;font-size:20px;line-height:1}
@@ -37,10 +37,10 @@ main{max-width:1180px;margin:0 auto;padding:0 12px}
 option{background:#232b40;color:#fff}
 .tbw{padding:6px 12px 12px}
 .tb{width:100%;border-collapse:collapse}
-.tb th{font:500 12px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);text-align:left;padding:12px 10px}
-.tb td{padding:11px 10px;border-top:1px solid var(--line);font-size:14px}
+.tb th{font:600 12px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);text-align:left;padding:12px 10px}
+.tb td{padding:11px 10px;border-top:1px solid var(--line);font-size:15px}
 .tb tbody tr:hover td{background:#ffffff09}
-.nm{display:flex;gap:11px;align-items:center}.nm b{font-weight:500;font-size:15px}
+.nm{display:flex;gap:11px;align-items:center}.nm b{font-weight:600;font-size:16px;letter-spacing:.005em}
 .mono{flex:none;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font:600 12px var(--sans);background:hsl(var(--c) 40% 28%);color:hsl(var(--c) 85% 84%);border:1px solid hsl(var(--c) 45% 46%)}
 .tag{display:inline-block;font-size:12px;border-radius:99px;padding:2px 11px;background:hsl(var(--c) 38% 26%);color:hsl(var(--c) 85% 84%)}
 .pill{display:inline-block;font-size:12.5px;border-radius:99px;padding:3px 12px;font-weight:500}
@@ -54,9 +54,9 @@ option{background:#232b40;color:#fff}
 .fab{position:fixed;right:18px;bottom:max(18px,env(safe-area-inset-bottom));border-radius:99px;padding:14px 24px;box-shadow:0 10px 30px #0006}
 .empty{text-align:center;padding:44px 16px;color:var(--mute)}
 .stats{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:14px}
-.stat{padding:18px;border-top:3px solid var(--c)}.stat b{display:block;font:600 46px/1 var(--serif);color:var(--c)}.stat span{color:var(--mute);font-size:14px}
+.stat{padding:18px;border-top:3px solid var(--c)}.stat b{display:block;font:700 54px/1 var(--serif);color:var(--c)}.stat span{color:var(--mute);font-size:15px}
 .cards{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));margin-bottom:14px}
-.card{padding:20px}.card h3{font:600 24px var(--serif);margin-bottom:12px}
+.card{padding:20px}.card h3{font:700 27px var(--serif);margin-bottom:12px}
 .dn{display:flex;gap:18px;align-items:center;flex-wrap:wrap}.donut{width:170px;height:170px;flex:none}
 .dt{font:600 8px var(--serif);fill:#fff}.ds{font:400 2.7px var(--sans);fill:#A9B3C7}
 .lg{display:grid;gap:5px;font-size:14px;flex:1;min-width:130px}.lg span{display:flex;align-items:center;gap:8px}.lg i{width:10px;height:10px;border-radius:50%;background:var(--c);flex:none}.lg em{margin-left:auto;font-style:normal;color:var(--mute)}
@@ -68,7 +68,7 @@ option{background:#232b40;color:#fff}
 .mv{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line);font-size:14px}.mv small{color:var(--mute)}.in{color:#86EBC4}.outc{color:#FFA9B3}
 dialog{border:1px solid var(--line);border-radius:22px;padding:26px;width:min(440px,92vw);margin:auto;background:#2A3349;color:var(--ink)}
 dialog::backdrop{background:#0b1020aa;backdrop-filter:blur(3px)}
-dialog h2{font:600 30px var(--serif);margin-bottom:8px}dialog p{color:var(--mute)}
+dialog h2{font:700 34px var(--serif);margin-bottom:8px}dialog p{color:var(--mute)}
 label{display:block;font-size:13.5px;color:var(--mute);margin-top:12px}dialog input,dialog select{margin-top:4px;color:var(--ink)}
 .row{display:flex;gap:10px;margin-top:20px;justify-content:flex-end;flex-wrap:wrap}
 .er{color:var(--bad);font-size:14px;margin-top:12px}.col{display:grid;gap:10px;margin-top:14px}.col .btn{width:100%;text-align:center}
@@ -83,20 +83,29 @@ label{display:block;font-size:13.5px;color:var(--mute);margin-top:12px}dialog in
  .tb td[data-l]:not(:first-child)::before{content:attr(data-l) ": ";color:var(--mute);font-size:12px}
  .arr{display:none}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+.brand{display:flex;align-items:center;gap:14px}.sep{width:1px;height:38px;background:var(--line)}
+.bt b{display:block;font:700 27px/1 var(--serif);color:var(--gold);letter-spacing:.01em}
+.bt span{display:block;margin-top:6px;font:500 12px/1 var(--sans);letter-spacing:.18em;text-transform:uppercase;color:#E6EBF5}
+.lb{margin:10px 0 6px!important}.lb b{display:block;font:700 32px/1.1 var(--serif);color:var(--gold)}.lb span{font:500 12px var(--sans);letter-spacing:.18em;text-transform:uppercase;color:#E6EBF5}
+.cnt{color:var(--mute);font-size:14.5px;margin:-4px 2px 10px}
+.foot{text-align:center;margin:34px 0 10px;font:700 19px var(--serif);color:var(--gold)}.foot span{font:500 12px var(--sans);letter-spacing:.16em;text-transform:uppercase;color:#E6EBF5;margin-left:8px}
+@media (max-width:760px){.bt b{font-size:22px}.bt span{font-size:11px;letter-spacing:.14em}.top img{height:26px}}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head><body>
 <div id="login" class="login" hidden><div class="glass">
-<img src="logo.png" alt="Sancia"><p>Nel App Stock · ingresá para continuar</p>
+<img src="logo.png" alt="Sancia"><p class="lb"><b>Nel App Stock</b><span>by Nelson Carrizo</span></p><p>Ingresá para continuar</p>
 <label>Correo<input id="em" type="email" autocomplete="username"></label>
 <label>Contraseña<input id="pw" type="password" autocomplete="current-password"></label>
 <p class="er" id="err"></p><button class="btn" id="go">Ingresar</button></div></div>
 
 <div id="app" hidden>
-<header class="top glass"><div><img src="logo.png" alt="Sancia"><small>Nel App Stock</small></div>
+<header class="top glass"><div class="brand"><img src="logo.png" alt="Sancia"><span class="sep"></span><div class="bt"><b>Nel App Stock</b><span>by Nelson Carrizo</span></div></div>
 <nav id="tabs"><button data-t="res">Resumen</button><button data-t="rep">Reposición</button><button data-t="uso">En uso</button><button data-t="inf">Informe</button></nav>
 <div class="r"><button class="ghost" id="xl">Excel</button><button class="ghost" id="inst" hidden>Instalar</button><button class="ghost" id="out">Salir</button></div></header>
 <main id="main"></main>
+<footer class="foot">Nel App Stock<span>by Nelson Carrizo</span></footer>
 <button class="btn fab" id="add">+ Nuevo esmalte</button>
 <input type="file" id="xf" accept=".xlsx,.xls,.csv" hidden><dialog id="dlg"></dialog>
 </div><div id="toast" role="status"></div>
@@ -121,7 +130,7 @@ const BR=['OPI','Meline','Vanta','Masglo','Kamena'];
 const TYPES=['Común','Semipermanente','Soft gel','Top coat','Base coat','Tratamiento','Dipping','Polygel'];
 const COL=['#E3C08D','#7FA6FF','#E69AB0','#5FD4A5','#B79CFF','#F2A36B','#6FD0E0','#C6D17A'];
 const SEC={rep:'Reposición',uso:'En uso'};
-const I={plus:'<path d="M12 5v14M5 12h14"/>',minus:'<path d="M5 12h14"/>',del:'<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'};
+const I={plus:'<path d="M12 5v14M5 12h14"/>',minus:'<path d="M5 12h14"/>',edit:'<path d="M4 20h4L19 9l-4-4L4 16v4zM13 7l4 4"/>',del:'<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'};
 const ico=(k)=>`<svg viewBox="0 0 24 24" aria-hidden="true">${I[k]}</svg>`;
 const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');setTimeout(()=>e.classList.remove('on'),2800)};
 const fail=e=>{console.error(e);toast('No se pudo guardar. Revisá la conexión.')};
@@ -130,7 +139,7 @@ const canonBrand=b=>[...BR,...P.map(p=>p.brand)].find(x=>norm(x)===norm(b))||Str
 const canonType=t=>{const n=norm(t);if(!n)return'Común';if(n.includes('semi'))return'Semipermanente';return types().find(x=>norm(x)===n)||String(t).trim().replace(/^./,c=>c.toUpperCase())};
 const st=p=>p.qty<1?['bad','Agotado']:p.qty<=2?['warn','Stock bajo']:['ok','Disponible'];
 
-let P=[],M=[],tab='res',brand='Todas',type='Todos',q='',days=30,lim=20,unsub=[];
+let P=[],M=[],tab='res',brand='Todas',type='Todos',q='',days=30,lim=20,stat='Todos',ing='Todos',srt='new',unsub=[];
 
 /* ---------- Sesión ---------- */
 onAuthStateChanged(auth,u=>{
@@ -206,16 +215,23 @@ function shell(){
  const n=b=>items.filter(p=>b==='Todas'||p.brand===b).reduce((a,p)=>a+p.qty,0);
  return `<div class="head"><h2>${tab==='rep'?'Stock de reposición':'Esmaltes en uso'}</h2><p>${tab==='rep'?'Lo que tenés en el depósito':'Lo que está disponible en el local'} · ${items.length} referencias</p></div>
  <div class="car"><button class="arr" data-sc="-1" aria-label="Marcas anteriores">‹</button><div class="chips" id="chips">${['Todas',...bs].map(b=>`<button class="chip ${brand===b?'on':''}" data-brand="${esc(b)}">${esc(b)}<b>${n(b)}</b></button>`).join('')}</div><button class="arr" data-sc="1" aria-label="Marcas siguientes">›</button></div>
- <div class="tools"><input id="q" type="search" placeholder="Buscar esmalte o marca…" value="${esc(q)}"><select id="ty" aria-label="Tipo">${['Todos',...types()].map(t=>`<option ${t===type?'selected':''}>${esc(t)}</option>`).join('')}</select></div><div class="glass tbw" id="tbl"></div>`;
+ <div class="tools"><input id="q" type="search" placeholder="Buscar esmalte o marca…" value="${esc(q)}">
+ <select id="ty" aria-label="Tipo"><option value="Todos">Todos los tipos</option>${types().map(t=>`<option ${t===type?'selected':''}>${esc(t)}</option>`).join('')}</select>
+ <select id="stt" aria-label="Estado">${[['Todos','Todos los estados'],['ok','Disponible'],['warn','Stock bajo'],['bad','Agotado']].map(([v,l])=>`<option value="${v}" ${stat===v?'selected':''}>${l}</option>`).join('')}</select>
+ <select id="ing" aria-label="Fecha de ingreso">${[['Todos','Cualquier ingreso'],['7','Últimos 7 días'],['30','Últimos 30 días'],['90','Últimos 90 días']].map(([v,l])=>`<option value="${v}" ${ing===v?'selected':''}>${l}</option>`).join('')}</select>
+ <select id="srt" aria-label="Ordenar">${[['new','Más recientes'],['old','Más antiguos'],['az','Nombre A–Z'],['brand','Marca A–Z'],['hi','Mayor stock'],['lo','Menor stock']].map(([v,l])=>`<option value="${v}" ${srt===v?'selected':''}>${l}</option>`).join('')}</select>
+ <button class="btn o" data-a="clr">Limpiar</button></div><p class="cnt" id="cnt"></p><div class="glass tbw" id="tbl"></div>`;
 }
 function list(){
- const f=P.filter(p=>p.section===tab&&(brand==='Todas'||p.brand===brand)&&(type==='Todos'||p.type===type)&&norm(p.name+' '+p.brand).includes(norm(q))).sort((a,b)=>b.createdAt-a.createdAt);
- $('#tbl').innerHTML=f.length?`<table class="tb"><thead><tr><th>Esmalte<th>Marca<th>Tipo<th>Stock<th>Ingreso<th>Última salida<th></tr></thead><tbody>${f.slice(0,lim).map(p=>`<tr><td><div class="nm"><span class="mono" style="--c:${hue(p.brand)}">${esc(p.brand.slice(0,2).toUpperCase())}</span><b>${esc(p.name)}</b></div><td data-l="Marca">${esc(p.brand)}<td data-l="Tipo"><span class="tag" style="--c:${hue(p.type)}">${esc(p.type)}</span><td data-l="Stock"><span class="pill ${st(p)[0]}">${p.qty} · ${st(p)[1]}</span><td data-l="Ingreso">${fmt(p.createdAt)}<td data-l="Última salida">${fmt(p.lastOut)}<td class="ac"><button class="ib" data-a="plus" data-id="${p.id}" title="Agregar stock" aria-label="Agregar stock">${ico('plus')}</button><button class="ib" data-a="out" data-id="${p.id}" title="Retirar" aria-label="Retirar" ${p.qty<1?'disabled':''}>${ico('minus')}</button><button class="ib d" data-a="del" data-id="${p.id}" title="Eliminar" aria-label="Eliminar">${ico('del')}</button></tr>`).join('')}</tbody></table>${f.length>lim?`<button class="btn o more" data-more>Ver más (${f.length-lim})</button>`:''}`:'<div class="empty">No hay esmaltes acá todavía.<br>Tocá “Nuevo esmalte” o importá tu Excel.</div>';
+ const since=ing==='Todos'?0:Date.now()-ing*864e5,S={new:(a,b)=>b.createdAt-a.createdAt,old:(a,b)=>a.createdAt-b.createdAt,az:(a,b)=>a.name.localeCompare(b.name,'es'),brand:(a,b)=>a.brand.localeCompare(b.brand,'es')||a.name.localeCompare(b.name,'es'),hi:(a,b)=>b.qty-a.qty,lo:(a,b)=>a.qty-b.qty};
+ const f=P.filter(p=>p.section===tab&&(brand==='Todas'||p.brand===brand)&&(type==='Todos'||p.type===type)&&(stat==='Todos'||st(p)[0]===stat)&&p.createdAt>=since&&norm(p.name+' '+p.brand).includes(norm(q))).sort(S[srt]);
+ $('#cnt').textContent=`${f.length} esmalte${f.length===1?'':'s'} · ${f.reduce((a,p)=>a+p.qty,0)} unidades`;
+ $('#tbl').innerHTML=f.length?`<table class="tb"><thead><tr><th>Esmalte<th>Marca<th>Tipo<th>Stock<th>Ingreso<th>Última salida<th></tr></thead><tbody>${f.slice(0,lim).map(p=>`<tr><td><div class="nm"><span class="mono" style="--c:${hue(p.brand)}">${esc(p.brand.slice(0,2).toUpperCase())}</span><b>${esc(p.name)}</b></div><td data-l="Marca">${esc(p.brand)}<td data-l="Tipo"><span class="tag" style="--c:${hue(p.type)}">${esc(p.type)}</span><td data-l="Stock"><span class="pill ${st(p)[0]}">${p.qty} · ${st(p)[1]}</span><td data-l="Ingreso">${fmt(p.createdAt)}<td data-l="Última salida">${fmt(p.lastOut)}<td class="ac"><button class="ib" data-a="edit" data-id="${p.id}" title="Editar" aria-label="Editar">${ico('edit')}</button><button class="ib" data-a="plus" data-id="${p.id}" title="Agregar stock" aria-label="Agregar stock">${ico('plus')}</button><button class="ib" data-a="out" data-id="${p.id}" title="Retirar" aria-label="Retirar" ${p.qty<1?'disabled':''}>${ico('minus')}</button><button class="ib d" data-a="del" data-id="${p.id}" title="Eliminar" aria-label="Eliminar">${ico('del')}</button></tr>`).join('')}</tbody></table>${f.length>lim?`<button class="btn o more" data-more>Ver más (${f.length-lim})</button>`:''}`:'<div class="empty">No hay esmaltes acá todavía.<br>Tocá “Nuevo esmalte” o importá tu Excel.</div>';
 }
 function report(){
  const since=days?Date.now()-days*864e5:0,outs=M.filter(m=>m.kind==='out'&&m.section==='rep'&&!m.adj&&m.at>=since),map={};
- P.filter(p=>p.section==='rep').forEach(p=>map[key(p)]={name:p.name,brand:p.brand,n:0});
- outs.forEach(m=>{(map[key(m)]??={name:m.name,brand:m.brand,n:0}).n+=m.qty});
+ P.filter(p=>p.section==='rep').forEach(p=>map[p.id]={name:p.name,brand:p.brand,n:0});
+ outs.forEach(m=>{const k=map[m.pid]?m.pid:key(m);(map[k]??={name:m.name,brand:m.brand,n:0}).n+=m.qty});
  const r=Object.values(map).sort((a,b)=>b.n-a.n),max=r[0]?.n||1;r.forEach(x=>x.max=max);
  const top=r.filter(x=>x.n>0).slice(0,6),low=[...r].reverse().slice(0,6),bm={};r.forEach(x=>bm[x.brand]=(bm[x.brand]||0)+x.n);
  const bl=Object.entries(bm).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]).map(([label,v])=>({label,v}));
@@ -224,7 +240,7 @@ function report(){
  <div class="cards"><div class="glass card"><h3>Los que más salen</h3>${top.map(x=>bar(x,'')).join('')||'<p class="empty">Aún no hay retiros en este período.</p>'}</div>
  <div class="glass card"><h3>Los que menos salen</h3>${low.map(x=>bar(x,'l')).join('')||'<p class="empty">Cargá esmaltes en Reposición.</p>'}</div></div>
  <div class="cards"><div class="glass card"><h3>Retiros por marca</h3>${bl.length?`<div class="dn">${donut(bl)}${legend(bl)}</div>`:'<p class="empty">Sin retiros en este período.</p>'}</div>
- <div class="glass card"><h3>Últimos movimientos</h3>${[...M].sort((a,b)=>b.at-a.at).slice(0,10).map(m=>`<div class="mv"><span class="${m.kind==='in'?'in':'outc'}">${m.kind==='in'?'+':'−'}${m.qty} · ${esc(m.name)} <small>${esc(m.brand)} · ${SEC[m.section]}</small></span><small>${fmt(m.at)}</small></div>`).join('')||'<p class="empty">Todavía no hay movimientos.</p>'}</div></div>`;
+ <div class="glass card"><h3>Últimos movimientos</h3>${[...M].sort((a,b)=>b.at-a.at).slice(0,10).map(m=>`<div class="mv"><span class="${m.kind==='in'?'in':'outc'}">${m.kind==='in'?'+':'−'}${m.qty} · ${esc(m.name)}${m.adj?' <small>(ajuste)</small>':''} <small>${esc(m.brand)} · ${SEC[m.section]}</small></span><small>${fmt(m.at)}</small></div>`).join('')||'<p class="empty">Todavía no hay movimientos.</p>'}</div></div>`;
 }
 
 /* ---------- Diálogos ---------- */
@@ -243,6 +259,23 @@ function openAdd(){
   const ex=P.find(p=>p.section===s&&key(p)===key({name,brand:b,type:t}));
   if(ex){$('#er').innerHTML=`Ya tenés <b>${esc(ex.name)}</b> (${esc(ex.brand)} · ${esc(ex.type)}) en ${SEC[s]} con <b>${ex.qty}</b> unidades. Para sumar usá el botón “+” de esa fila.`;return}
   addStock({name,brand:b,type:t,qty:c,section:s});dlg.close()});
+ $('#t').onchange=()=>$('#ow').hidden=$('#t').value!=='__o';
+}
+function openEdit(p){
+ show(`<h2>Editar esmalte</h2><p>${SEC[p.section]} · cargado el ${fmt(p.createdAt)}</p>
+ <label>Nombre<input id="n" value="${esc(p.name)}"></label>
+ <label>Marca<input id="b" list="bl" value="${esc(p.brand)}"><datalist id="bl">${[...new Set([...BR,...P.map(x=>x.brand)])].map(b=>`<option value="${esc(b)}">`).join('')}</datalist></label>
+ <label>Tipo<select id="t">${types().map(t=>`<option ${t===p.type?'selected':''}>${esc(t)}</option>`).join('')}<option value="__o">Otro… (escribir)</option></select></label>
+ <label id="ow" hidden>Nuevo tipo<input id="o" placeholder="Ej: Efecto espejo"></label>
+ <label>Cantidad en stock<input id="c" type="number" min="0" value="${p.qty}" inputmode="numeric"></label>
+ <p class="er" id="er"></p><div class="row"><button class="btn o" id="no">Cancelar</button><button class="btn" id="ok">Guardar cambios</button></div>`,()=>{
+  const name=$('#n').value.trim(),b=canonBrand($('#b').value),t=$('#t').value==='__o'?canonType($('#o').value):$('#t').value,c=parseInt($('#c').value);
+  if(!name||!b||isNaN(c)||c<0){$('#er').textContent='Completá nombre y marca, y poné una cantidad válida (0 o más).';return}
+  const ex=P.find(x=>x.id!==p.id&&x.section===p.section&&key(x)===key({name,brand:b,type:t}));
+  if(ex){$('#er').innerHTML=`Ya existe <b>${esc(ex.name)}</b> (${esc(ex.brand)} · ${esc(ex.type)}) en ${SEC[p.section]} con ${ex.qty} unidades.`;return}
+  const bt=writeBatch(db),upd={name,brand:b,type:t};
+  if(c!==p.qty){upd.qty=c;bt.set(doc(collection(db,'movements')),mv({...p,name,brand:b,type:t},c>p.qty?'in':'out',Math.abs(c-p.qty),Date.now(),{adj:true}))}
+  bt.update(doc(db,'polishes',p.id),upd);bt.commit().catch(fail);toast('Cambios guardados');dlg.close()});
  $('#t').onchange=()=>$('#ow').hidden=$('#t').value!=='__o';
 }
 function openOut(p){
@@ -311,12 +344,13 @@ $('#add').onclick=openAdd;
 $('#tabs').onclick=e=>{const t=e.target.dataset.t;if(t){tab=t;brand='Todas';type='Todos';lim=20;render()}};
 $('#main').onclick=e=>{
  const t=e.target.closest('[data-brand],[data-days],[data-a],[data-more],[data-sc]');if(!t)return;
+ if(t.dataset.a==='clr'){q='';type='Todos';stat='Todos';ing='Todos';srt='new';brand='Todas';lim=20;render();return}
  if(t.dataset.sc){$('#chips').scrollBy({left:t.dataset.sc*240,behavior:'smooth'});return}
  if(t.dataset.brand){brand=t.dataset.brand;lim=20;render()}
  else if(t.dataset.days){days=+t.dataset.days;render()}
  else if('more'in t.dataset){lim+=20;list()}
- else{const p=P.find(x=>x.id===t.dataset.id);if(!p)return;({out:()=>openOut(p),plus:()=>openPlus(p),del:()=>remove(p)})[t.dataset.a]()}
+ else{const p=P.find(x=>x.id===t.dataset.id);if(!p)return;({edit:()=>openEdit(p),out:()=>openOut(p),plus:()=>openPlus(p),del:()=>remove(p)})[t.dataset.a]()}
 };
 $('#main').oninput=e=>{if(e.target.id==='q'){q=e.target.value;lim=20;list()}};
-$('#main').onchange=e=>{if(e.target.id==='ty'){type=e.target.value;lim=20;list()}};
+$('#main').onchange=e=>{const m={ty:v=>type=v,stt:v=>stat=v,ing:v=>ing=v,srt:v=>srt=v}[e.target.id];if(m){m(e.target.value);lim=20;list()}};
 </script></body></html>
