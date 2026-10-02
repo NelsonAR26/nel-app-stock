@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Nel App Stock · Sancia</title>
+<meta name="theme-color" content="#3B1F36">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Jost:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F8F3F4;--card:#fff;--ink:#2B1A2C;--plum:#3B1F36;--rose:#B76E79;--gold:#B8923F;--mute:#8A7787;--line:#E9DDE0;--ok:#4C7A5A;--bad:#A4404E;
+--serif:'Cormorant Garamond',Georgia,serif;--sans:'Jost',system-ui,sans-serif}
+*{box-sizing:border-box;margin:0}[hidden]{display:none!important}
+body{font:400 16px/1.5 var(--sans);background:var(--bg);color:var(--ink);padding-bottom:110px}
+button,input,select{font:inherit;color:inherit}button{cursor:pointer}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+header{background:var(--plum);color:#F6E9D8;padding:max(18px,env(safe-area-inset-top)) 22px 18px;display:flex;justify-content:space-between;align-items:center}
+header h1{font:600 38px/1 var(--serif);letter-spacing:.04em}header p{font-size:13px;color:#D9B8A8;margin-top:2px}
+header .r{display:flex;gap:8px}
+.ghost{background:none;border:1px solid #ffffff44;color:#F6E9D8;border-radius:99px;padding:6px 14px;font-size:14px}
+nav{display:flex;gap:4px;max-width:900px;margin:18px auto 0;padding:0 16px}
+nav button{flex:1;border:0;background:none;padding:10px 6px;font:600 20px var(--serif);color:var(--mute);border-bottom:2px solid var(--line)}
+nav button.on{color:var(--plum);border-color:var(--gold)}
+main{max-width:900px;margin:0 auto;padding:16px}
+.chips{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;padding:4px 0 12px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{scroll-snap-align:start;flex:none;border:1px solid var(--line);background:var(--card);border-radius:99px;padding:8px 16px;font-size:15px}
+.chip b{color:var(--rose);font-weight:600;margin-left:4px}
+.chip.on{background:var(--plum);color:#fff;border-color:var(--plum)}.chip.on b{color:#E8C9A0}
+.tools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.tools input,.tools select{flex:1 1 180px;border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px 12px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(270px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:10px}
+.top{display:flex;gap:12px;align-items:center}
+.sw{width:42px;height:42px;border-radius:50% 50% 50% 8px;flex:none;box-shadow:inset 0 0 0 3px #ffffff88,0 0 0 1px var(--line)}
+.top h3{font:600 22px/1.1 var(--serif)}.top small{color:var(--mute)}
+.q{margin-left:auto;text-align:center;font:600 34px/1 var(--serif);color:var(--plum)}.q.low{color:var(--bad)}.q span{display:block;font:400 11px var(--sans);color:var(--mute)}
+.tag{display:inline-block;font-size:12px;border-radius:99px;padding:1px 9px;background:#F3E6E8;color:var(--plum);margin-left:6px}.tag.semi{background:#F4EAD3;color:#7A5C14}
+.dates{font-size:13px;color:var(--mute);display:flex;justify-content:space-between;gap:8px}
+.acts{display:flex;gap:8px}
+.btn{border:1px solid var(--plum);background:var(--plum);color:#fff;border-radius:10px;padding:8px 14px;font-weight:500}
+.btn.o{background:none;color:var(--plum)}.btn.x{border-color:var(--line);color:var(--bad);background:none;margin-left:auto}
+.fab{position:fixed;right:18px;bottom:max(18px,env(safe-area-inset-bottom));background:var(--gold);color:#fff;border:0;border-radius:99px;padding:14px 22px;font-weight:600;box-shadow:0 8px 24px #3B1F3655}
+.empty{text-align:center;padding:48px 16px;color:var(--mute)}
+dialog{border:0;border-radius:18px;padding:22px;width:min(440px,92vw);margin:auto;background:#fff;color:var(--ink)}
+dialog::backdrop{background:#2B1A2Caa}
+dialog h2{font:600 28px var(--serif);margin-bottom:12px}
+label{display:block;font-size:14px;color:var(--mute);margin-top:10px}
+dialog input,dialog select{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:4px}
+dialog input[type=color]{height:44px;padding:3px}dialog .chk{display:flex;gap:8px;align-items:center;color:var(--ink)}dialog .chk input{width:auto;margin:0}
+.row{display:flex;gap:10px;margin-top:18px;justify-content:flex-end}
+.stats{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:18px}
+.stat{background:var(--plum);color:#F6E9D8;border-radius:14px;padding:16px}.stat b{display:block;font:600 40px/1 var(--serif);color:#E8C9A0}
+h2.s{font:600 26px var(--serif);margin:22px 0 10px}
+.bar{display:grid;grid-template-columns:minmax(120px,1.2fr) 2fr 34px;gap:10px;align-items:center;padding:6px 0;font-size:15px}
+.bar i{display:block;height:10px;border-radius:9px;background:linear-gradient(90deg,var(--rose),var(--gold))}.bar.l i{background:var(--mute)}.bar small{color:var(--mute)}
+.bar em{font-style:normal;font-weight:600;text-align:right}
+.mv{font-size:14px;padding:8px 0;border-bottom:1px solid var(--line);display:flex;gap:10px;justify-content:space-between}.in{color:var(--ok)}.outc{color:var(--bad)}
+.login{min-height:100vh;display:grid;place-items:center;background:var(--plum);padding:20px}
+.login div{background:#fff;border-radius:20px;padding:30px;width:min(380px,100%)}
+.login h1{font:600 46px/1 var(--serif);color:var(--plum)}.login p{color:var(--mute);margin-bottom:10px}.login .btn{width:100%;margin-top:16px;padding:12px}
+#err{color:var(--bad);font-size:14px;margin-top:8px}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:99px;font-size:14px;opacity:0;transition:.3s;pointer-events:none}#toast.on{opacity:1}
+@media (max-width:600px){.bar{grid-template-columns:1fr 1fr 30px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style></head><body>
+<div id="login" class="login" hidden><div>
+<h1>Sancia</h1><p>Nel App Stock · ingresá para continuar</p>
+<label>Correo<input id="em" type="email" autocomplete="username"></label>
+<label>Contraseña<input id="pw" type="password" autocomplete="current-password"></label>
+<p id="err"></p><button class="btn" id="go">Ingresar</button></div></div>
+
+<div id="app" hidden>
+<header><div><h1>Sancia</h1><p>Nel App Stock</p></div>
+<div class="r"><button class="ghost" id="inst" hidden>Instalar app</button><button class="ghost" id="out">Salir</button></div></header>
+<nav id="tabs"><button data-t="rep">Reposición</button><button data-t="uso">En uso</button><button data-t="inf">Informe</button></nav>
+<main id="main"></main>
+<button class="fab" id="add">+ Nuevo esmalte</button>
+<dialog id="dlg"></dialog>
+</div><div id="toast"></div>
+
+<script type="module">
+/* ====== 1) PEGÁ ACÁ LA CONFIGURACIÓN DE TU PROYECTO FIREBASE ====== */
+const firebaseConfig={apiKey:"AIzaSyA_mffH6yFailmdEM1Y-hqAe0jK5fmVdVc",authDomain:"nel-app-stock.firebaseapp.com",projectId:"nel-app-stock",storageBucket:"nel-app-stock.firebasestorage.app",messagingSenderId:"44332337509",appId:"1:44332337509:web:a7efb5fa433e636378798c"};
+/* ================================================================== */
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,signOut} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {initializeFirestore,persistentLocalCache,persistentMultipleTabManager,collection,doc,onSnapshot,writeBatch,increment} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const app=initializeApp(firebaseConfig),auth=getAuth(app);
+const db=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})});
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=t=>t?new Date(t).toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'}):'—';
+const key=x=>[x.name,x.brand,x.type].map(s=>String(s).trim().toLowerCase()).join('|');
+const BR=['OPI','Meline','Vanta','Masglo','Kamena'];
+const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');setTimeout(()=>e.classList.remove('on'),2200)};
+const fail=e=>{console.error(e);toast('No se pudo guardar. Revisá la conexión.')};
+
+let P=[],M=[],tab='rep',brand='Todas',type='Todos',q='',days=30,unsub=[];
+
+/* ---------- Sesión ---------- */
+onAuthStateChanged(auth,u=>{
+ $('#login').hidden=!!u;$('#app').hidden=!u;unsub.forEach(f=>f());unsub=[];
+ if(!u)return;
+ unsub.push(onSnapshot(collection(db,'polishes'),s=>{P=s.docs.map(d=>({id:d.id,...d.data()}));render()}));
+ unsub.push(onSnapshot(collection(db,'movements'),s=>{M=s.docs.map(d=>d.data());if(tab==='inf')render()}));
+});
+$('#go').onclick=()=>signInWithEmailAndPassword(auth,$('#em').value.trim(),$('#pw').value).catch(()=>$('#err').textContent='Correo o contraseña incorrectos.');
+$('#out').onclick=()=>signOut(auth);
+
+/* ---------- Instalación ---------- */
+let ip;addEventListener('beforeinstallprompt',e=>{e.preventDefault();ip=e;$('#inst').hidden=false});
+$('#inst').onclick=async()=>{ip.prompt();await ip.userChoice;$('#inst').hidden=true};
+if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
+
+/* ---------- Operaciones de stock ---------- */
+const mv=(p,kind,n,now)=>({pid:p.id||'',name:p.name,brand:p.brand,type:p.type,section:p.section,kind,qty:n,at:now});
+function addStock(d){
+ const now=Date.now(),b=writeBatch(db),ex=P.find(p=>p.section===d.section&&key(p)===key(d));
+ let id;
+ if(ex){id=ex.id;b.update(doc(db,'polishes',id),{qty:increment(d.qty),lastIn:now})}
+ else{const r=doc(collection(db,'polishes'));id=r.id;b.set(r,{...d,createdAt:now,lastIn:now,lastOut:null})}
+ b.set(doc(collection(db,'movements')),mv({...d,id},'in',d.qty,now));
+ b.commit().catch(fail);toast('Stock ingresado');
+}
+function withdraw(p,n,toUse){
+ n=Math.min(n,p.qty);if(n<1)return;
+ const now=Date.now(),b=writeBatch(db);
+ b.update(doc(db,'polishes',p.id),{qty:increment(-n),lastOut:now});
+ b.set(doc(collection(db,'movements')),mv(p,'out',n,now));
+ if(toUse&&p.section==='rep'){
+  const ex=P.find(x=>x.section==='uso'&&key(x)===key(p));
+  if(ex)b.update(doc(db,'polishes',ex.id),{qty:increment(n),lastIn:now});
+  else b.set(doc(collection(db,'polishes')),{name:p.name,brand:p.brand,type:p.type,color:p.color,section:'uso',qty:n,createdAt:now,lastIn:now,lastOut:null});
+ }
+ b.commit().catch(fail);toast(`Retiraste ${n}`);
+}
+const plus=p=>{const now=Date.now(),b=writeBatch(db);b.update(doc(db,'polishes',p.id),{qty:increment(1),lastIn:now});b.set(doc(collection(db,'movements')),mv(p,'in',1,now));b.commit().catch(fail)};
+const remove=p=>{if(confirm(`¿Eliminar "${p.name}" de ${p.section==='rep'?'Reposición':'En uso'}?`)){const b=writeBatch(db);b.delete(doc(db,'polishes',p.id));b.commit().catch(fail)}};
+
+/* ---------- Vistas ---------- */
+function render(){
+ document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
+ $('#add').hidden=tab==='inf';
+ $('#main').innerHTML=tab==='inf'?report():shell();
+ if(tab!=='inf')grid();
+}
+function shell(){
+ const items=P.filter(p=>p.section===tab),bs=[...new Set(items.map(p=>p.brand))].sort();
+ const chip=(b,n)=>`<button class="chip ${brand===b?'on':''}" data-brand="${esc(b)}">${esc(b)}<b>${n}</b></button>`;
+ return `<div class="chips">${chip('Todas',items.reduce((a,p)=>a+p.qty,0))}${bs.map(b=>chip(b,items.filter(p=>p.brand===b).reduce((a,p)=>a+p.qty,0))).join('')}</div>
+ <div class="tools"><input id="q" type="search" placeholder="Buscar esmalte o marca" value="${esc(q)}">
+ <select id="ty">${['Todos','Común','Semipermanente'].map(t=>`<option ${t===type?'selected':''}>${t}</option>`).join('')}</select></div><div class="grid" id="grid"></div>`;
+}
+function grid(){
+ const f=P.filter(p=>p.section===tab&&(brand==='Todas'||p.brand===brand)&&(type==='Todos'||p.type===type)&&(p.name+' '+p.brand).toLowerCase().includes(q.toLowerCase())).sort((a,b)=>b.createdAt-a.createdAt);
+ $('#grid').innerHTML=f.length?f.map(p=>`<article class="card"><div class="top"><div class="sw" style="background:${esc(p.color||'#B76E79')}"></div>
+ <div><h3>${esc(p.name)}</h3><small>${esc(p.brand)}</small><span class="tag ${p.type==='Común'?'':'semi'}">${esc(p.type)}</span></div>
+ <div class="q ${p.qty<=1?'low':''}">${p.qty}<span>unid.</span></div></div>
+ <div class="dates"><span>Ingreso: ${fmt(p.createdAt)}</span><span>Última salida: ${fmt(p.lastOut)}</span></div>
+ <div class="acts"><button class="btn" data-a="out" data-id="${p.id}" ${p.qty<1?'disabled':''}>Retirar</button><button class="btn o" data-a="plus" data-id="${p.id}">+1</button><button class="btn x" data-a="del" data-id="${p.id}">Eliminar</button></div></article>`).join('')
+ :`<div class="empty" style="grid-column:1/-1">No hay esmaltes acá todavía.<br>Tocá “Nuevo esmalte” para cargar el primero.</div>`;
+}
+function report(){
+ const since=days?Date.now()-days*864e5:0,outs=M.filter(m=>m.kind==='out'&&m.section==='rep'&&m.at>=since),map={};
+ P.filter(p=>p.section==='rep').forEach(p=>map[key(p)]={name:p.name,brand:p.brand,type:p.type,n:0});
+ outs.forEach(m=>{(map[key(m)]??={name:m.name,brand:m.brand,type:m.type,n:0}).n+=m.qty});
+ const r=Object.values(map).sort((a,b)=>b.n-a.n),max=r[0]?.n||1,top=r.filter(x=>x.n>0).slice(0,5),low=[...r].reverse().slice(0,5);
+ const bm={};r.forEach(x=>bm[x.brand]=(bm[x.brand]||0)+x.n);const bl=Object.entries(bm).sort((a,b)=>b[1]-a[1]);
+ const bar=(x,c)=>`<div class="bar ${c}"><span>${esc(x.name)} <small>${esc(x.brand)}</small></span><i style="width:${Math.max(4,x.n/max*100)}%"></i><em>${x.n}</em></div>`;
+ const sum=s=>P.filter(p=>p.section===s).reduce((a,p)=>a+p.qty,0);
+ return `<div class="tools">${[[30,'30 días'],[90,'90 días'],[0,'Todo']].map(([d,l])=>`<button class="chip ${days===d?'on':''}" data-days="${d}">${l}</button>`).join('')}</div>
+ <div class="stats"><div class="stat"><b>${sum('rep')}</b>en reposición</div><div class="stat"><b>${sum('uso')}</b>en uso</div><div class="stat"><b>${outs.reduce((a,m)=>a+m.qty,0)}</b>retiradas del período</div></div>
+ <h2 class="s">Los que más salen</h2>${top.length?top.map(x=>bar(x,'')).join(''):'<p class="empty">Aún no hay retiros en este período.</p>'}
+ <h2 class="s">Los que menos salen</h2>${low.length?low.map(x=>bar(x,'l')).join(''):'<p class="empty">Cargá esmaltes en Reposición.</p>'}
+ <h2 class="s">Retiros por marca</h2>${bl.map(([b,n])=>bar({name:b,brand:'',n},'')).join('')||'<p class="empty">Sin datos.</p>'}
+ <h2 class="s">Últimos movimientos</h2>${[...M].sort((a,b)=>b.at-a.at).slice(0,15).map(m=>`<div class="mv"><span class="${m.kind==='in'?'in':'outc'}">${m.kind==='in'?'+':'−'}${m.qty} · ${esc(m.name)} <small>${esc(m.brand)} · ${m.section==='rep'?'Reposición':'En uso'}</small></span><small>${fmt(m.at)}</small></div>`).join('')||'<p class="empty">Todavía no hay movimientos.</p>'}`;
+}
+
+/* ---------- Diálogos ---------- */
+const dlg=$('#dlg');
+function openAdd(){
+ dlg.innerHTML=`<h2>Nuevo esmalte</h2><label>Nombre<input id="n" required placeholder="Ej: Big Apple Red"></label>
+ <label>Marca<input id="b" list="bl" placeholder="OPI, Meline, Vanta…"><datalist id="bl">${[...new Set([...BR,...P.map(p=>p.brand)])].map(b=>`<option value="${esc(b)}">`).join('')}</datalist></label>
+ <label>Tipo<select id="t"><option>Común</option><option>Semipermanente</option></select></label>
+ <label>Cantidad<input id="c" type="number" min="1" value="1"></label>
+ <label>Se guarda en<select id="s"><option value="rep" ${tab==='rep'?'selected':''}>Reposición (depósito)</option><option value="uso" ${tab==='uso'?'selected':''}>En uso (local)</option></select></label>
+ <label>Color<input id="k" type="color" value="#B76E79"></label>
+ <div class="row"><button class="btn o" id="no">Cancelar</button><button class="btn" id="ok">Guardar</button></div>`;
+ dlg.showModal();$('#no').onclick=()=>dlg.close();
+ $('#ok').onclick=()=>{const n=$('#n').value.trim(),b=$('#b').value.trim(),c=parseInt($('#c').value)||0;
+  if(!n||!b||c<1){toast('Completá nombre, marca y cantidad');return}
+  addStock({name:n,brand:b,type:$('#t').value,qty:c,section:$('#s').value,color:$('#k').value});dlg.close()};
+}
+function openOut(p){
+ dlg.innerHTML=`<h2>Retirar stock</h2><p>${esc(p.name)} · ${esc(p.brand)} (hay ${p.qty})</p>
+ <label>Cantidad a retirar<input id="c" type="number" min="1" max="${p.qty}" value="1"></label>
+ ${p.section==='rep'?`<label class="chk"><input id="u" type="checkbox" checked> Sumar a “En uso”</label>`:''}
+ <div class="row"><button class="btn o" id="no">Cancelar</button><button class="btn" id="ok">Confirmar</button></div>`;
+ dlg.showModal();$('#no').onclick=()=>dlg.close();
+ $('#ok').onclick=()=>{withdraw(p,parseInt($('#c').value)||0,$('#u')?.checked);dlg.close()};
+}
+
+/* ---------- Eventos ---------- */
+$('#add').onclick=openAdd;
+$('#tabs').onclick=e=>{const t=e.target.dataset.t;if(t){tab=t;brand='Todas';render()}};
+$('#main').onclick=e=>{
+ const t=e.target.closest('[data-brand],[data-days],[data-a]');if(!t)return;
+ if(t.dataset.brand){brand=t.dataset.brand;render()}
+ else if(t.dataset.days){days=+t.dataset.days;render()}
+ else{const p=P.find(x=>x.id===t.dataset.id);if(!p)return;
+  ({out:()=>openOut(p),plus:()=>plus(p),del:()=>remove(p)})[t.dataset.a]()}
+};
+$('#main').oninput=e=>{if(e.target.id==='q'){q=e.target.value;grid()}};
+$('#main').onchange=e=>{if(e.target.id==='ty'){type=e.target.value;grid()}};
+</script></body></html>
