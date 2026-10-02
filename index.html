@@ -102,6 +102,7 @@ label{display:block;font-size:13.5px;color:var(--mute);margin-top:12px}dialog in
 .arr{width:40px;height:40px;transition:.2s}.arr:hover{background:#E3C08D;color:#2B2233;border-color:transparent}
 .sub{color:var(--mute);margin:-6px 0 14px;font-size:14.5px}.addrow{display:flex;gap:10px;margin-bottom:8px}.addrow input{flex:1;background:#141a2a99;border:1px solid var(--line);border-radius:12px;padding:10px 14px}
 .cn{display:flex;gap:12px;align-items:center}.cn b{display:block;font-weight:600}.cn small{color:var(--mute)}
+.hd{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap}.xb{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
@@ -227,7 +228,7 @@ function shell(){
  const items=P.filter(p=>p.section===tab),bs=[...new Set(items.map(p=>p.brand))].sort();
  if(brand!=='Todas'&&!bs.includes(brand))brand='Todas';
  const n=b=>items.filter(p=>b==='Todas'||p.brand===b).reduce((a,p)=>a+p.qty,0);
- return `<div class="head"><h2>${tab==='rep'?'Stock de reposición':'Esmaltes en uso'}</h2><p>${tab==='rep'?'Lo que tenés en el depósito':'Lo que está disponible en el local'} · ${items.length} referencias</p></div>
+ return `<div class="head hd"><div><h2>${tab==='rep'?'Stock de reposición':'Esmaltes en uso'}</h2><p>${tab==='rep'?'Lo que tenés en el depósito':'Lo que está disponible en el local'} · ${items.length} referencias</p></div><div class="xb"><button class="btn o" data-a="ximp">⬆ Importar Excel</button><button class="btn o" data-a="xexp">⬇ Exportar</button><button class="btn o" data-a="xtpl">Plantilla</button></div></div>
  <div class="car"><button class="arr" data-sc="-1" aria-label="Marcas anteriores">‹</button><div class="chips" id="chips">${['Todas',...bs].map(b=>{const all=b==='Todas',u=n(b),r=items.filter(p=>all||p.brand===b).length;return `<button class="bchip ${brand===b?'on':''}" data-brand="${esc(b)}"><span class="cm" style="--c:${all?42:hue(b)}">${all?'✦':esc(b.slice(0,2).toUpperCase())}</span><span class="ct"><b>${all?'Todas las marcas':esc(b)}</b><small>${u} unidades · ${r} ref.</small></span></button>`}).join('')}</div><button class="arr" data-sc="1" aria-label="Marcas siguientes">›</button></div>
  <div class="tools"><input id="q" type="search" placeholder="Buscar esmalte o marca…" value="${esc(q)}">
  <select id="ty" aria-label="Tipo"><option value="Todos">Todos los tipos</option>${types().map(t=>`<option ${t===type?'selected':''}>${esc(t)}</option>`).join('')}</select>
@@ -309,7 +310,7 @@ function openPlus(p){
 function openExcel(){
  show(`<h2>Excel</h2><p>Cargá o descargá tu stock en una planilla.</p><div class="col">
  <button class="btn" id="e1">Importar desde Excel</button><button class="btn o" id="e2">Exportar todo a Excel</button><button class="btn o" id="e3">Descargar plantilla vacía</button><button class="btn o" id="no">Cerrar</button></div>`);
- $('#e1').onclick=()=>{dlg.close();$('#xf').click()};$('#e2').onclick=()=>{exportXls();dlg.close()};$('#e3').onclick=()=>{template();dlg.close()};
+ $('#e1').onclick=()=>{impSec=null;dlg.close();$('#xf').click()};$('#e2').onclick=()=>{exportXls();dlg.close()};$('#e3').onclick=()=>{template();dlg.close()};
 }
 const SC={ok:['FFDDF5EA','FF1E7A53'],warn:['FFFCF0D4','FF8A6112'],bad:['FFFBE1E5','FFA3303F']};
 const fill=c=>({type:'pattern',pattern:'solid',fgColor:{argb:c}});
@@ -332,30 +333,31 @@ async function saveWb(wb,name){
  const buf=await wb.xlsx.writeBuffer(),a=document.createElement('a');
  a.href=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
 }
-async function exportXls(){
+async function exportXls(only){
  if(!window.ExcelJS){toast('Necesitás conexión a internet para exportar');return}
  try{
  const wb=new ExcelJS.Workbook();wb.creator='Nel App Stock by Nelson Carrizo';
  const cs=[['Nombre',32,'left'],['Marca',18,'left'],['Tipo',20,'left'],['Cantidad',12,'center'],['Estado',16,'center'],['Fecha de ingreso',18,'center'],['Última salida',18,'center']];
- ['rep','uso'].forEach(sec=>{
+ (only?[only]:['rep','uso']).forEach(sec=>{
   const ws=sheetBase(wb,SEC[sec],`Stock de ${SEC[sec].toLowerCase()}`,cs);
   P.filter(p=>p.section===sec).sort((a,b)=>a.brand.localeCompare(b.brand,'es')||a.name.localeCompare(b.name,'es')).forEach((p,i)=>{
    const k=st(p)[0],r=addRow(ws,[p.name,p.brand,p.type,p.qty,st(p)[1],fmt(p.createdAt),fmt(p.lastOut)],i,cs);
    [4,5].forEach(j=>{const x=r.getCell(j);x.fill=fill(SC[k][0]);x.font={name:'Calibri',size:11,bold:true,color:{argb:SC[k][1]}}})});
  });
- const mc=[['Fecha',16,'center'],['Movimiento',15,'center'],['Esmalte',32,'left'],['Marca',18,'left'],['Tipo',20,'left'],['Cantidad',12,'center'],['Sección',16,'left']],wm=sheetBase(wb,'Movimientos','Historial de movimientos',mc);
+ if(!only){const mc=[['Fecha',16,'center'],['Movimiento',15,'center'],['Esmalte',32,'left'],['Marca',18,'left'],['Tipo',20,'left'],['Cantidad',12,'center'],['Sección',16,'left']],wm=sheetBase(wb,'Movimientos','Historial de movimientos',mc);
  [...M].sort((a,b)=>b.at-a.at).forEach((m,i)=>{const r=addRow(wm,[fmt(m.at),m.kind==='in'?'Ingreso':'Retiro',m.name,m.brand,m.type,m.qty,SEC[m.section]],i,mc);r.getCell(2).font={name:'Calibri',size:11,bold:true,color:{argb:m.kind==='in'?'FF1E7A53':'FFA3303F'}}});
- await saveWb(wb,`Sancia-stock-${new Date().toISOString().slice(0,10)}.xlsx`);toast('Excel descargado');
+ }
+ await saveWb(wb,`Sancia-${only==='uso'?'en-uso':only==='rep'?'reposicion':'stock'}-${new Date().toISOString().slice(0,10)}.xlsx`);toast('Excel descargado');
  }catch(e){console.error(e);toast('No se pudo crear el Excel')}
 }
-async function template(){
+async function template(sec){
  if(!window.ExcelJS){toast('Necesitás conexión a internet para descargar la plantilla');return}
  try{
- const wb=new ExcelJS.Workbook(),cs=[['Nombre',34,'left'],['Marca',20,'left'],['Tipo',22,'left'],['Cantidad',14,'center']],ws=sheetBase(wb,'Esmaltes','Plantilla de carga · completá desde la fila 5',cs);
+ const wb=new ExcelJS.Workbook(),cs=[['Nombre',34,'left'],['Marca',20,'left'],['Tipo',22,'left'],['Cantidad',14,'center']],ws=sheetBase(wb,sec?SEC[sec]:'Esmaltes',`Plantilla${sec?' · '+SEC[sec]:''} · completá desde la fila 5`,cs);
  for(let i=0;i<80;i++){const r=addRow(ws,['','','',''],i,cs),n=r.number;
   ws.getCell(n,3).dataValidation={type:'list',allowBlank:true,formulae:['"'+types().join(',')+'"']};
   ws.getCell(n,4).dataValidation={type:'whole',operator:'greaterThanOrEqual',allowBlank:true,formulae:[0]}}
- await saveWb(wb,'Plantilla-esmaltes-Sancia.xlsx');
+ await saveWb(wb,sec==='uso'?'Plantilla-en-uso-Sancia.xlsx':sec==='rep'?'Plantilla-reposicion-Sancia.xlsx':'Plantilla-esmaltes-Sancia.xlsx');
  }catch(e){console.error(e);toast('No se pudo crear la plantilla')}
 }
 async function readXls(f){
@@ -381,11 +383,13 @@ async function importRows(rows,defSec,mode){
   await b.commit()}
  toast(`Nuevos: ${res.add} · Actualizados: ${res.upd} · Omitidos: ${res.skip}`)}catch(e){fail(e)}
 }
+let impSec=null;
 function openImport(rows){
- show(`<h2>Importar desde Excel</h2><p>Se leyeron <b>${rows.length}</b> filas.</p>
- <label>Cargar en (si la hoja no dice “Reposición” o “En uso”)<select id="s"><option value="rep" ${tab!=='uso'?'selected':''}>Reposición (depósito)</option><option value="uso" ${tab==='uso'?'selected':''}>En uso (local)</option></select></label>
+ const fx=impSec;if(fx)rows=rows.filter(r=>!r.sec||r.sec===fx);
+ show(`<h2>Importar desde Excel</h2><p>Se leyeron <b>${rows.length}</b> filas${fx?` para <b>${SEC[fx]}</b>`:''}.</p>
+ ${fx?'':`<label>Cargar en (si la hoja no dice “Reposición” o “En uso”)<select id="s"><option value="rep" ${tab!=='uso'?'selected':''}>Reposición (depósito)</option><option value="uso" ${tab==='uso'?'selected':''}>En uso (local)</option></select></label>`}
  <label>Si el esmalte ya está cargado<select id="m"><option value="skip">No tocarlo (evita duplicados)</option><option value="set">Reemplazar su cantidad por la del Excel</option><option value="add">Sumar la cantidad del Excel</option></select></label>
- <div class="row"><button class="btn o" id="no">Cancelar</button><button class="btn" id="ok">Importar</button></div>`,()=>{importRows(rows,$('#s').value,$('#m').value);dlg.close()});
+ <div class="row"><button class="btn o" id="no">Cancelar</button><button class="btn" id="ok">Importar</button></div>`,()=>{importRows(rows,fx||$('#s').value,$('#m').value);dlg.close()});
 }
 $('#xl').onclick=openExcel;
 $('#xf').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
@@ -427,6 +431,9 @@ $('#tabs').onclick=e=>{const t=e.target.dataset.t;if(t){tab=t;brand='Todas';$('#
 $('#main').onclick=e=>{
  const t=e.target.closest('[data-brand],[data-days],[data-a],[data-more],[data-sc]');if(!t)return;
  if(t.dataset.a==='clr'){q='';type='Todos';stat='Todos';ing='Todos';srt='new';brand='Todas';lim=20;render();return}
+ if(t.dataset.a==='ximp'){impSec=tab;$('#xf').click();return}
+ if(t.dataset.a==='xexp'){exportXls(tab);return}
+ if(t.dataset.a==='xtpl'){template(tab);return}
  if(['cadd','cren','cdel'].includes(t.dataset.a)){catAct(t.dataset.a,t.dataset.k,t.dataset.v);return}
  if(t.dataset.sc){$('#chips').scrollBy({left:t.dataset.sc*240,behavior:'smooth'});return}
  if(t.dataset.brand){brand=t.dataset.brand;lim=20;render()}
