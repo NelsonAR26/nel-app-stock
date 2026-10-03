@@ -106,6 +106,17 @@ label{display:block;font-size:13.5px;color:var(--mute);margin-top:12px;font-weig
  .tb td[data-l]:not(:first-child)::before{content:attr(data-l) ": ";color:var(--mute);font-size:12px}
  .arr{display:none}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+.alert{margin-bottom:14px;padding:18px 20px;border:1px solid rgba(255,107,125,.6);background:linear-gradient(135deg,rgba(255,92,112,.3),rgba(255,92,112,.09)),rgba(70,12,28,.34);box-shadow:0 0 0 1px rgba(255,107,125,.25),0 20px 50px rgba(120,20,40,.4),inset 0 1px 0 rgba(255,255,255,.3)}
+.ah{display:flex;gap:14px;align-items:center;margin-bottom:12px}.ah h3{font:700 27px var(--serif);color:#FFD6DB}.ah p{color:#FFC2CA;font-size:14.5px}
+.ai{flex:none;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font:700 24px var(--serif);background:#FF5A6E;color:#fff;box-shadow:0 0 0 0 rgba(255,90,110,.6);animation:pu 2s infinite}
+@keyframes pu{70%{box-shadow:0 0 0 14px rgba(255,90,110,0)}100%{box-shadow:0 0 0 0 rgba(255,90,110,0)}}
+.al{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+.ar{display:flex;align-items:center;gap:12px;text-align:left;padding:8px 12px 8px 8px;border-radius:16px;border:1px solid rgba(255,138,152,.4);background:rgba(255,255,255,.08);transition:.2s}.ar:hover{background:rgba(255,255,255,.18);transform:translateY(-1px)}
+.at{display:grid;line-height:1.25;flex:1;min-width:0}.at b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.at small{color:#FFC2CA;font-size:12.5px}
+.ar .pill.bad{background:#FF5A6E;color:#fff}
+.nb{display:inline-grid;place-items:center;min-width:19px;height:19px;padding:0 5px;margin-left:5px;border-radius:99px;background:#FF5A6E;color:#fff;font:700 11px var(--sans);font-style:normal;vertical-align:middle}
+@media (prefers-reduced-motion:reduce){.ai{animation:none}}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
@@ -215,6 +226,7 @@ const bar=(x,c)=>`<div class="bar ${c}"><span>${esc(x.name)} ${x.brand?`<small>$
 function render(){
  const sl=$('#chips')?.scrollLeft||0;
  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
+ const z=P.filter(p=>p.qty<1).length;$('#tabs [data-t="res"]').innerHTML='Resumen'+(z?` <i class="nb" aria-label="${z} en falta">${z}</i>`:'');
  $('#add').hidden=!(tab==='rep'||tab==='uso');
  $('#main').innerHTML=tab==='res'?resumen():tab==='inf'?report():tab==='cat'?catalog():shell();
  if(tab==='rep'||tab==='uso'){list();const c=$('#chips');if(c)c.scrollLeft=sl}
@@ -223,7 +235,9 @@ function resumen(){
  const sum=s=>P.filter(p=>p.section===s).reduce((a,p)=>a+p.qty,0),low=P.filter(p=>p.qty<=2).sort((a,b)=>a.qty-b.qty);
  const grp=f=>{const m={};P.forEach(p=>m[f(p)]=(m[f(p)]||0)+p.qty);return Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([label,v])=>({label,v}))};
  const bl=grp(p=>p.brand),tl=grp(p=>p.type),tm=tl[0]?.v||1;
- return `<div class="head"><h2>Resumen</h2><p>Así está el stock de Sancia hoy</p></div>
+ const zero=P.filter(p=>p.qty<1).sort((a,b)=>a.brand.localeCompare(b.brand,'es')||a.name.localeCompare(b.name,'es'));
+ const alerta=zero.length?`<div class="glass alert" role="alert"><div class="ah"><span class="ai">!</span><div><h3>Esmaltes en falta</h3><p>${zero.length} ${zero.length===1?'esmalte sin stock':'esmaltes sin stock'}. La alerta se quita sola cuando cargues stock.</p></div></div><div class="al">${zero.map(p=>`<button class="ar" data-go="${p.section}" data-q="${esc(p.name)}" title="Ir a ${SEC[p.section]}">${bmark(p.brand)}<span class="at"><b>${esc(p.name)}</b><small>${esc(p.brand)} · ${esc(p.type)} · ${SEC[p.section]}</small></span><span class="pill bad">Stock 0</span></button>`).join('')}</div></div>`:'';
+ return `<div class="head"><h2>Resumen</h2><p>Así está el stock de Sancia hoy</p></div>${alerta}
  <div class="stats"><div class="glass stat" style="--c:#E3C08D"><b>${sum('rep')}</b><span>unidades en reposición</span></div><div class="glass stat" style="--c:#7FA6FF"><b>${sum('uso')}</b><span>unidades en uso</span></div><div class="glass stat" style="--c:#5FD4A5"><b>${new Set(P.map(p=>key(p))).size}</b><span>esmaltes distintos</span></div><div class="glass stat" style="--c:#FF8A98"><b>${low.length}</b><span>con stock bajo o agotado</span></div></div>
  <div class="cards"><div class="glass card"><h3>Unidades por marca</h3>${bl.length?`<div class="dn">${donut(bl)}${legend(bl)}</div>`:'<p class="empty">Cargá tus primeros esmaltes.</p>'}</div>
  <div class="glass card"><h3>Movimientos · 14 días</h3>${cols()}</div></div>
@@ -447,9 +461,10 @@ $('#lf').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f||!
 
 /* ---------- Eventos ---------- */
 $('#add').onclick=openAdd;
-$('#tabs').onclick=e=>{const t=e.target.dataset.t;if(t){tab=t;brand='Todas';$('#chips')?.scrollTo(0,0);type='Todos';lim=20;render()}};
+$('#tabs').onclick=e=>{const t=e.target.closest('[data-t]')?.dataset.t;if(t){tab=t;brand='Todas';$('#chips')?.scrollTo(0,0);type='Todos';lim=20;render()}};
 $('#main').onclick=e=>{
- const t=e.target.closest('[data-brand],[data-days],[data-a],[data-more],[data-sc]');if(!t)return;
+ const t=e.target.closest('[data-brand],[data-days],[data-a],[data-more],[data-sc],[data-go]');if(!t)return;
+ if(t.dataset.go){tab=t.dataset.go;q=t.dataset.q||'';brand='Todas';type='Todos';stat='Todos';ing='Todos';lim=20;render();scrollTo({top:0,behavior:'smooth'});return}
  if(t.dataset.a==='clr'){q='';type='Todos';stat='Todos';ing='Todos';srt='new';brand='Todas';lim=20;render();return}
  if(t.dataset.a==='clogo'){openLogo(t.dataset.v);return}
  if(t.dataset.a==='ximp'){impSec=tab;$('#xf').click();return}
