@@ -322,7 +322,7 @@ const bmark=b=>{const l=logoOf(b);return l?`<span class="bl"><img src="${l}" alt
 const minOf=p=>Number(p.min)>0?Number(p.min):0;
 const isLow=p=>p.qty>=1&&minOf(p)>0&&p.qty<minOf(p);
 const needs=p=>p.qty<1||isLow(p);
-const st=p=>p.qty<1?['bad','Agotado']:(minOf(p)>0?p.qty<minOf(p):p.qty<=2)?['warn',minOf(p)>0?'Bajo mínimo':'Stock bajo']:['ok','Disponible'];
+const st=p=>p.qty<1?['bad','Agotado']:(minOf(p)>0?p.qty<minOf(p):(p.section!=='uso'&&p.qty<=2))?['warn',minOf(p)>0?'Bajo mínimo':'Stock bajo']:['ok','Disponible'];
 
 let C={},P=[],M=[],movementReady=false,tab='res',brand='Todas',type='Todos',q='',days=30,lim=20,stat='Todos',ing='Todos',srt='new',unsub=[];
 let supplyAreas=[{id:'manos',name:'Manos',items:[]}],supplyChecks=[],supplyCatalogReady=false,supplyHistoryReady=false,supplyAreaId='manos',supplyDrafts={},supplyDirty={};
@@ -451,7 +451,7 @@ function saveSupplyControl(){
  b.commit().then(()=>{supplyChecks=[{id:ref.id,...record},...supplyChecks];supplyDrafts[area.id]=null;supplyDirty[area.id]=false;toast('Control guardado en el historial');render()}).catch(fail);
 }
 function resumen(){
- const sum=s=>P.filter(p=>p.section===s).reduce((a,p)=>a+p.qty,0),low=P.filter(p=>p.qty<1||(minOf(p)>0?p.qty<minOf(p):p.qty<=2)).sort((a,b)=>a.qty-b.qty);
+ const sum=s=>P.filter(p=>p.section===s).reduce((a,p)=>a+p.qty,0),low=P.filter(p=>p.qty<1||(minOf(p)>0?p.qty<minOf(p):(p.section!=='uso'&&p.qty<=2))).sort((a,b)=>a.qty-b.qty);
  const grp=f=>{const m={};P.forEach(p=>m[f(p)]=(m[f(p)]||0)+p.qty);return Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([label,v])=>({label,v}))};
  const bl=grp(p=>p.brand),tl=grp(p=>p.type),tm=tl[0]?.v||1;
  const zero=P.filter(needs).sort((a,b)=>(a.qty<1?0:1)-(b.qty<1?0:1)||a.brand.localeCompare(b.brand,'es')||a.name.localeCompare(b.name,'es',{numeric:true})),z0=zero.filter(p=>p.qty<1).length,zl=zero.length-z0;
