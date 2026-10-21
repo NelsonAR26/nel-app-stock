@@ -368,7 +368,6 @@ dialog textarea#wm{line-height:1.45;font-size:14px}
 .voucher-expiry b{font-size:15px;white-space:nowrap}
 .voucher-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .voucher-actions .btn{min-width:0;padding-inline:12px}
-.voucher-phone-hint{margin-top:-7px}
 .voucher-hint,.voucher-error{margin:0;color:#756b5d;font-size:12px;line-height:1.5}
 .voucher-error{min-height:17px;color:#a84239}
 .voucher-preview{padding:10px;overflow:hidden}
@@ -658,8 +657,6 @@ function voucherView(){
   <div class="voucher-auto"><strong>Sección automática</strong><label for="voucherAutoText">Pegá el mensaje con los datos</label><textarea id="voucherAutoText" placeholder="De: Mariana\nPara: Julieta\nServicio: Manos y pies semi + 1 Masaje relax\nNº: 19509">${esc(voucherAutoText)}</textarea><p class="voucher-hint" id="voucherAutoMessage" aria-live="polite">${esc(voucherAutoMessage||'Al pegar el texto con De:, Para:, Valor: o Servicio: y Nº: (una etiqueta por línea o separadas por espacios), se completan los campos automáticamente. Después podés revisarlos o corregirlos.')}</p></div>
   <label>Nº interno de factura (opcional)<input id="voucherNumber" type="text" maxlength="18" inputmode="text" autocomplete="off" placeholder="Ej.: 19509" value="${esc(voucherDraft.number)}"></label>
  <label>Para *<input id="voucherTo" type="text" maxlength="42" autocomplete="off" placeholder="Nombre de quien recibe" value="${esc(voucherDraft.to)}"></label>
-  <label>WhatsApp de quien recibe (opcional)<input id="voucherPhone" type="tel" maxlength="20" inputmode="tel" autocomplete="tel" placeholder="Ej.: 5493815551234" value="${esc(voucherDraft.phone||'')}"></label>
-  <p class="voucher-hint voucher-phone-hint">Ingresá el número con código de país, sin + ni espacios, para abrir su chat directamente. Allí adjuntás la imagen descargada.</p>
   <label>De *<input id="voucherFrom" type="text" maxlength="42" autocomplete="off" placeholder="Nombre de quien regala" value="${esc(voucherDraft.from)}"></label>
   <label>Valor *<input id="voucherValue" type="text" maxlength="80" autocomplete="off" placeholder="Ej.: Manos y pies semi + 1 Masaje relax" value="${esc(voucherDraft.value)}"></label>
   <div class="voucher-expiry"><span>Vencimiento · 30 días desde la carga</span><b id="voucherExpiry">${voucherExpiry(voucherDraft.date)}</b></div>
@@ -686,8 +683,8 @@ async function drawVoucherCanvas(){
  if(!fitOk){const error=$('#voucherError');if(error)error.textContent='Algún texto es demasiado largo para la plantilla. Acortalo para que se vea completo.';return false}return true;
 }
 function readVoucherForm(){
- const number=$('#voucherNumber')?.value.trim()||'',to=$('#voucherTo')?.value.trim()||'',from=$('#voucherFrom')?.value.trim()||'',value=$('#voucherValue')?.value.trim()||'',phone=$('#voucherPhone')?.value.trim()||'',error=$('#voucherError');
- voucherDraft={...voucherDraft,number,to,from,value,phone,date:voucherToday()};
+ const number=$('#voucherNumber')?.value.trim()||'',to=$('#voucherTo')?.value.trim()||'',from=$('#voucherFrom')?.value.trim()||'',value=$('#voucherValue')?.value.trim()||'',error=$('#voucherError');
+ voucherDraft={...voucherDraft,number,to,from,value,date:voucherToday()};
  if(!to||!from||!value){error.textContent='Completá Para, De y Valor.';return false}
  if(window.__nelVoucherCanCreate===false){error.textContent='Tu cuenta no tiene permiso para generar vouchers.';return}
  if(!number&&!confirm('El voucher se emitirá sin número de factura. ¿Continuar?'))return false;
@@ -702,13 +699,13 @@ async function downloadVoucher(){
 }
 async function shareVoucherWhatsApp(){
  if(!readVoucherForm())return;
- const phone=(voucherDraft.phone||'').replace(/\D/g,'');const recipient=voucherDraft.to.trim();const message=`Hola ${recipient} ♥, te comparto tu voucher de Sancia. ¡Esperamos que lo disfrutes!`;
- const canNativeShare=!phone&&navigator.share&&navigator.canShare?.({files:[new File(['voucher'],'voucher.png',{type:'image/png'})]});
+ const recipient=voucherDraft.to.trim();const message=`Hola ${recipient} ♥, te comparto tu voucher de Sancia. ¡Esperamos que lo disfrutes!`;
+ const canNativeShare=navigator.share&&navigator.canShare?.({files:[new File(['voucher'],'voucher.png',{type:'image/png'})]});
  const whatsappWindow=canNativeShare?null:window.open('about:blank','_blank');
  const file=await createVoucherFile();if(!file){whatsappWindow?.close();return}
  if(canNativeShare){try{await navigator.share({files:[file],title:'Voucher Sancia',text:message});toast('Elegí WhatsApp y el contacto para compartir el voucher');return}catch(e){if(e?.name==='AbortError')return;console.warn('No se pudo compartir el archivo desde el dispositivo.',e)}}
  const link=document.createElement('a');link.href=URL.createObjectURL(file);link.download=file.name;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1500);
- const url=`https://wa.me/${phone}?text=${encodeURIComponent(message)}`;if(whatsappWindow)whatsappWindow.location.href=url;else window.location.href=url;
+ const url=`https://wa.me/?text=${encodeURIComponent(message)}`;if(whatsappWindow)whatsappWindow.location.href=url;else window.location.href=url;
  $('#voucherError').textContent='Se descargó la imagen y abrimos el chat. Adjuntá el archivo descargado en WhatsApp para enviarlo.';
 }
 function render(){
@@ -1489,7 +1486,7 @@ $('#main').oninput=e=>{
   voucherAutoMessage=!voucherAutoText.trim()?'Al pegar el texto con De:, Para:, Valor: o Servicio: y Nº: (una etiqueta por línea o separadas por espacios), se completan los campos automáticamente. Después podés revisarlos o corregirlos.':found.length?`Detecté ${found.join(', ')}. Revisá los campos y completá los que falten.`:'Todavía no detecté campos. Usá etiquetas con dos puntos, por ejemplo: De: Mariana Para: Julieta Servicio: Manos y pies semi.';
   const status=$('#voucherAutoMessage');if(status)status.textContent=voucherAutoMessage;drawVoucherCanvas();return
  }
-  if(['voucherNumber','voucherTo','voucherFrom','voucherValue','voucherPhone'].includes(e.target.id)){voucherDraft[e.target.id==='voucherNumber'?'number':e.target.id==='voucherTo'?'to':e.target.id==='voucherFrom'?'from':e.target.id==='voucherPhone'?'phone':'value']=e.target.value;drawVoucherCanvas();return}
+ if(['voucherNumber','voucherTo','voucherFrom','voucherValue'].includes(e.target.id)){voucherDraft[e.target.id==='voucherNumber'?'number':e.target.id==='voucherTo'?'to':e.target.id==='voucherFrom'?'from':'value']=e.target.value;drawVoucherCanvas();return}
  if(e.target.id==='claimSearch'){claimQuery=e.target.value;$('#claimList').innerHTML=claimRows(claimsForPeriod());return}
  if(e.target.id==='dq'){dl.q=e.target.value;dl.lim=60;$('#dbody').innerHTML=dBody();return}
  if(e.target.id==='q'){q=e.target.value;lim=20;list();return}
