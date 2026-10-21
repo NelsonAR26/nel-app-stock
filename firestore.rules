@@ -1,8 +1,80 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if request.auth != null;
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function profilePath(uid) {
+      return /databases/$(database)/documents/userAccess/$(uid);
+    }
+
+    function hasProfile() {
+      return signedIn() && exists(profilePath(request.auth.uid));
+    }
+
+    function activeUser() {
+      return hasProfile() && get(profilePath(request.auth.uid)).data.active == true;
+    }
+
+    function isAdmin() {
+      return activeUser() && get(profilePath(request.auth.uid)).data.role == 'admin';
+    }
+
+    function can(module, action) {
+      return isAdmin() || (
+        activeUser() &&
+        get(profilePath(request.auth.uid)).data.get('permissions', {}).get(module, {}).get(action, false) == true
+      );
+    }
+
+    match /userAccess/{uid} {
+      allow get: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow list: if isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /polishes/{id} {
+      allow get, list: if can('polishes', 'read');
+      allow create: if can('polishes', 'create');
+      allow update: if can('polishes', 'edit');
+      allow delete: if can('polishes', 'delete');
+    }
+
+    match /movements/{id} {
+      allow get, list: if can('movements', 'read') || can('polishes', 'read');
+      // Stock changes write their audit movement in the same atomic batch.
+      allow create: if can('movements', 'create') || can('polishes', 'create') || can('polishes', 'edit');
+      allow update: if can('movements', 'edit');
+      allow delete: if can('movements', 'delete');
+    }
+
+    match /serviceClaims/{id} {
+      allow get, list: if can('serviceClaims', 'read');
+      allow create: if can('serviceClaims', 'create');
+      allow update: if can('serviceClaims', 'edit');
+      allow delete: if can('serviceClaims', 'delete');
+    }
+
+    match /deliveries/{id} {
+      allow get, list: if can('deliveries', 'read');
+      allow create: if can('deliveries', 'create');
+      allow update: if can('deliveries', 'edit');
+      allow delete: if can('deliveries', 'delete');
+    }
+
+    match /supplyControls/{id} {
+      allow get, list: if can('supplyControls', 'read');
+      allow create: if can('supplyControls', 'create');
+      allow update: if can('supplyControls', 'edit');
+      allow delete: if can('supplyControls', 'delete');
+    }
+
+    match /settings/{id} {
+      allow get, list: if activeUser();
+      allow create: if can('settings', 'create') || can('polishes', 'create') || can('polishes', 'edit');
+      allow update: if can('settings', 'edit') || can('polishes', 'create') || can('polishes', 'edit');
+      allow delete: if can('settings', 'delete');
     }
   }
 }
