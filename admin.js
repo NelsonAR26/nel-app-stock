@@ -6,7 +6,7 @@ const firebaseConfig={apiKey:'AIzaSyA_mffH6yFailmdEM1Y-hqAe0jK5fmVdVc',authDomai
 const app=getApp(),auth=getAuth(app),db=getFirestore(app);
 const provisionApp=initializeApp(firebaseConfig,'nel-app-stock-user-provisioner');
 const provisionAuth=initializeAuth(provisionApp,{persistence:inMemoryPersistence});
-const modules=[['polishes','Stock'],['movements','Movimientos'],['serviceClaims','Reclamos'],['deliveries','Entregas'],['supplyControls','Ronda de insumos'],['settings','Configuración']];
+const modules=[['polishes','Stock'],['movements','Movimientos'],['serviceClaims','Reclamos'],['deliveries','Entregas'],['supplyControls','Ronda de insumos'],['vouchers','Voucher digital'],['settings','Configuración']];
 const actions=[['read','Consultar'],['create','Crear'],['edit','Editar'],['delete','Eliminar']];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let currentUser=null,accountList=[];
@@ -24,6 +24,11 @@ function readPermissions(root){const out={};root.querySelectorAll('[data-perm-mo
 function mountPanelButton(){
  const nav=document.querySelector('#tabs');if(!nav||document.querySelector('#masterAccess'))return;
  const button=document.createElement('button');button.id='masterAccess';button.type='button';button.textContent='Panel Maestro';button.addEventListener('click',()=>{dialog.showModal();refreshUsers()});nav.append(button);
+}
+function mountVoucherTab(){
+ const nav=document.querySelector('#tabs');if(!nav||document.querySelector('#tabs [data-t="voucher"]'))return;
+ const button=document.createElement('button');button.dataset.t='voucher';button.title='Voucher digital';button.innerHTML='<svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12v8H4v-8M2 7h20v5H2zM12 7v13M12 7H8.5a2.5 2.5 0 1 1 2.35-3.35L12 7Zm0 0h3.5a2.5 2.5 0 1 0-2.35-3.35L12 7Z"/></svg><span class="tl">Voucher digital</span>';
+ nav.append(button);
 }
 async function refreshUsers(){
  const body=dialog.querySelector('#mpUsers'),error=dialog.querySelector('#mpListError');body.innerHTML='<tr><td colspan="3">Cargando…</td></tr>';error.textContent='';
@@ -61,7 +66,8 @@ dialog.querySelector('#mpCreate').onclick=async()=>{
 
 onAuthStateChanged(auth,async user=>{
  currentUser=user;const button=document.querySelector('#masterAccess');
- if(!user){button?.remove();return}
- try{const profile=await getDoc(doc(db,'userAccess',user.uid));if(profile.exists()&&profile.data().role==='admin'&&profile.data().active!==false){mountPanelButton();dialog.querySelector('#mpNewPerms').innerHTML=permissionEditor('new')}}
- catch(e){console.error('No se pudo verificar el rol de administrador.',e)}
+ const voucherButton=document.querySelector('#tabs [data-t="voucher"]');
+ if(!user){button?.remove();voucherButton?.remove();window.__nelVoucherCanCreate=false;return}
+ try{const profile=await getDoc(doc(db,'userAccess',user.uid));const access=profile.exists()?profile.data():{},active=access.active===true,admin=active&&access.role==='admin',permissions=active?(access.permissions?.vouchers||{}):{};window.__nelVoucherCanCreate=admin||permissions.create===true;if(admin||permissions.read===true||permissions.create===true)mountVoucherTab();else voucherButton?.remove();if(admin){mountPanelButton();dialog.querySelector('#mpNewPerms').innerHTML=permissionEditor('new')}}
+ catch(e){window.__nelVoucherCanCreate=false;voucherButton?.remove();console.error('No se pudo verificar el rol de administrador.',e)}
 });
