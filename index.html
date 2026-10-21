@@ -632,11 +632,11 @@ function voucherView(){
  const canCreate=window.__nelVoucherCanCreate!==false;
  return `<div class="head hd"><div><h2>Voucher digital</h2><p>Completá los datos y generá una imagen lista para compartir.</p></div></div>
  <div class="voucher-layout"><section class="glass card voucher-form">
-  <div class="voucher-auto"><strong>Sección automática</strong><label for="voucherAutoText">Pegá el mensaje con los datos</label><textarea id="voucherAutoText" placeholder="De: Mariana\nPara: Julieta\nServicio: Manos semipermanentes\nNº: 19509">${esc(voucherAutoText)}</textarea><p class="voucher-hint" id="voucherAutoMessage" aria-live="polite">${esc(voucherAutoMessage||'Al pegar un texto con etiquetas De:, Para:, Servicio:/Valor: o Nº:, se completan los campos automáticamente. Después podés revisarlos o corregirlos.')}</p></div>
+  <div class="voucher-auto"><strong>Sección automática</strong><label for="voucherAutoText">Pegá el mensaje con los datos</label><textarea id="voucherAutoText" placeholder="De: Mariana\nPara: Julieta\nValor: Manos y pies semi + 1 Masaje relax\nNº: 19509">${esc(voucherAutoText)}</textarea><p class="voucher-hint" id="voucherAutoMessage" aria-live="polite">${esc(voucherAutoMessage||'Al pegar un texto con etiquetas De:, Para:, Valor: o Nº:, se completan los campos automáticamente. Después podés revisarlos o corregirlos.')}</p></div>
   <label>Nº interno de factura *<input id="voucherNumber" type="text" maxlength="18" inputmode="text" autocomplete="off" placeholder="Ej.: 19509" value="${esc(voucherDraft.number)}"></label>
   <label>Para *<input id="voucherTo" type="text" maxlength="42" autocomplete="off" placeholder="Nombre de quien recibe" value="${esc(voucherDraft.to)}"></label>
   <label>De *<input id="voucherFrom" type="text" maxlength="42" autocomplete="off" placeholder="Nombre de quien regala" value="${esc(voucherDraft.from)}"></label>
-  <label>Valor / servicio *<input id="voucherValue" type="text" maxlength="48" autocomplete="off" placeholder="Ej.: Manos semipermanentes" value="${esc(voucherDraft.value)}"></label>
+  <label>Valor *<input id="voucherValue" type="text" maxlength="80" autocomplete="off" placeholder="Ej.: Manos y pies semi + 1 Masaje relax" value="${esc(voucherDraft.value)}"></label>
   <div class="voucher-expiry"><span>Vencimiento · 30 días desde la carga</span><b id="voucherExpiry">${voucherExpiry(voucherDraft.date)}</b></div>
   <p class="voucher-hint">La fecha de emisión se toma al cargar el voucher y el vencimiento se calcula automáticamente. El número interno queda visible para verificar la factura.</p>
   <p class="voucher-error" id="voucherError" aria-live="polite"></p>
@@ -654,14 +654,14 @@ async function drawVoucherCanvas(){
  voucherFontsPromise??=Promise.all([document.fonts.load('400 62px Poppins'),document.fonts.load('400 40px Questrial')]);
  try{await voucherFontsPromise}catch{}
  const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(voucherTemplateImage,0,0,canvas.width,canvas.height);ctx.fillStyle='#73594b';ctx.textBaseline='alphabetic';ctx.textAlign='left';
- voucherFitText(ctx,voucherDraft.to.trim(),550,496,1125,62,34);voucherFitText(ctx,voucherDraft.from.trim(),480,584,1190,62,34);voucherFitText(ctx,voucherDraft.value.trim(),590,675,1070,62,34);voucherFitText(ctx,voucherExpiry(voucherDraft.date),580,863,540,62,36);
+ voucherFitText(ctx,voucherDraft.to.trim(),550,496,1125,62,34);voucherFitText(ctx,voucherDraft.from.trim(),480,584,1190,62,34);voucherFitText(ctx,voucherDraft.value.trim(),590,675,1080,62,20);voucherFitText(ctx,voucherExpiry(voucherDraft.date),580,863,540,62,36);
  ctx.fillStyle='#ffffff';voucherFitText(ctx,voucherDraft.number.trim(),1560,100,140,40,22,'Questrial');
  return true;
 }
 function downloadVoucher(){
  const number=$('#voucherNumber')?.value.trim()||'',to=$('#voucherTo')?.value.trim()||'',from=$('#voucherFrom')?.value.trim()||'',value=$('#voucherValue')?.value.trim()||'',error=$('#voucherError');
  voucherDraft={...voucherDraft,number,to,from,value,date:voucherToday()};
- if(!number||!to||!from||!value){error.textContent='Completá el Nº interno, Para, De y Valor / servicio.';return}
+ if(!number||!to||!from||!value){error.textContent='Completá el Nº interno, Para, De y Valor.';return}
  if(window.__nelVoucherCanCreate===false){error.textContent='Tu cuenta no tiene permiso para generar vouchers.';return}
  error.textContent='';drawVoucherCanvas().then(ok=>{if(!ok)return;const canvas=$('#voucherCanvas');canvas?.toBlob(blob=>{if(!blob){error.textContent='No se pudo preparar la imagen. Revisá que la plantilla esté disponible.';return}const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=`Voucher-Sancia-${number.replace(/[^a-zA-Z0-9_-]/g,'_')}.png`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1500);toast('Voucher descargado como imagen')},'image/png')})
 }
@@ -1430,9 +1430,9 @@ $('#main').oninput=e=>{
   voucherAutoText=e.target.value;const parsed={};
   const label=/^\s*(n\s*(?:[º°o.]|ro)?(?:\s+interno)?(?:\s+de\s+factura)?|n[uú]mero(?:\s+interno)?(?:\s+de\s+factura)?|factura(?:\s+n\s*(?:[º°o.]|ro)?)?|para|de|valor(?:\s*\/\s*servicio)?|servicio)\s*[:\-]\s*(.*?)\s*$/i;
   for(const line of voucherAutoText.split(/\r?\n/)){const match=line.match(label);if(!match||!match[2])continue;const key=match[1].toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'');const field=/^n|^numero|^factura/.test(key)?'number':key==='para'?'to':key==='de'?'from':'value';if(!parsed[field])parsed[field]=match[2].trim()}
-  const names={number:'Nº interno',to:'Para',from:'De',value:'Servicio/valor'},found=[];
+  const names={number:'Nº interno',to:'Para',from:'De',value:'Valor'},found=[];
   for(const [key,value] of Object.entries(parsed)){voucherDraft[key]=value;const input=$(`#voucher${key==='number'?'Number':key==='to'?'To':key==='from'?'From':'Value'}`);if(input)input.value=value;found.push(names[key])}
-  voucherAutoMessage=!voucherAutoText.trim()?'Al pegar un texto con etiquetas De:, Para:, Servicio:/Valor: o Nº:, se completan los campos automáticamente. Después podés revisarlos o corregirlos.':found.length?`Detecté ${found.join(', ')}. Revisá los campos y completá los que falten.`:'Todavía no detecté campos. Usá una etiqueta por línea, por ejemplo: Para: Julieta.';
+  voucherAutoMessage=!voucherAutoText.trim()?'Al pegar un texto con etiquetas De:, Para:, Valor: o Nº:, se completan los campos automáticamente. Después podés revisarlos o corregirlos.':found.length?`Detecté ${found.join(', ')}. Revisá los campos y completá los que falten.`:'Todavía no detecté campos. Usá una etiqueta por línea, por ejemplo: Valor: Manos y pies semi + 1 Masaje relax.';
   const status=$('#voucherAutoMessage');if(status)status.textContent=voucherAutoMessage;drawVoucherCanvas();return
  }
   if(['voucherNumber','voucherTo','voucherFrom','voucherValue'].includes(e.target.id)){voucherDraft[e.target.id==='voucherNumber'?'number':e.target.id==='voucherTo'?'to':e.target.id==='voucherFrom'?'from':'value']=e.target.value;drawVoucherCanvas();return}
