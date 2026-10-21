@@ -654,8 +654,8 @@ async function drawVoucherCanvas(){
  voucherFontsPromise??=Promise.all([document.fonts.load('400 62px Poppins'),document.fonts.load('400 40px Questrial')]);
  try{await voucherFontsPromise}catch{}
  const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(voucherTemplateImage,0,0,canvas.width,canvas.height);ctx.fillStyle='#73594b';ctx.textBaseline='alphabetic';ctx.textAlign='left';
- voucherFitText(ctx,voucherDraft.to.trim(),515,496,1160,62,34);voucherFitText(ctx,voucherDraft.from.trim(),434,584,1240,62,34);voucherFitText(ctx,voucherDraft.value.trim(),553,675,1110,62,34);voucherFitText(ctx,voucherExpiry(voucherDraft.date),549,863,570,62,36);
- ctx.fillStyle='#ffffff';voucherFitText(ctx,voucherDraft.number.trim(),1543,100,155,40,22,'Questrial');
+ voucherFitText(ctx,voucherDraft.to.trim(),550,496,1125,62,34);voucherFitText(ctx,voucherDraft.from.trim(),480,584,1190,62,34);voucherFitText(ctx,voucherDraft.value.trim(),590,675,1070,62,34);voucherFitText(ctx,voucherExpiry(voucherDraft.date),580,863,540,62,36);
+ ctx.fillStyle='#ffffff';voucherFitText(ctx,voucherDraft.number.trim(),1560,100,140,40,22,'Questrial');
  return true;
 }
 function downloadVoucher(){
