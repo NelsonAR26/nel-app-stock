@@ -357,6 +357,10 @@ dialog textarea#wm{line-height:1.45;font-size:14px}
 /* Voucher digital */
 .voucher-layout{display:grid;grid-template-columns:minmax(300px,.72fr) minmax(0,1.28fr);gap:16px;align-items:start}
 .voucher-form{display:grid;gap:12px}
+.voucher-auto{display:grid;gap:8px;padding:13px;border:1px solid rgba(59,92,81,.18);border-radius:14px;background:rgba(255,255,255,.45)}
+.voucher-auto strong{color:#3b5c51;font-size:14px}
+.voucher-auto textarea{width:100%;min-height:112px;resize:vertical;padding:11px 12px;border:1px solid rgba(59,92,81,.2);border-radius:12px;background:rgba(255,253,248,.92);color:#302921;font:500 14px/1.5 var(--sans);outline:none}
+.voucher-auto textarea:focus{border-color:#3b5c51;box-shadow:0 0 0 3px rgba(59,92,81,.12)}
 .voucher-form label{display:grid;gap:6px;color:#54483e;font-weight:600;font-size:13px}
 .voucher-form input{width:100%;min-width:0;padding:11px 12px;border:1px solid rgba(59,92,81,.2);border-radius:12px;background:rgba(255,253,248,.92);color:#302921;font:500 14px var(--sans);outline:none}
 .voucher-form input:focus{border-color:#3b5c51;box-shadow:0 0 0 3px rgba(59,92,81,.12)}
@@ -618,7 +622,7 @@ function cols(){
 const bar=(x,c)=>`<div class="bar ${c}"><span>${esc(x.name)} ${x.brand?`<small>${esc(x.brand)}</small>`:''}</span><div class="bar-track"><i style="width:${Math.max(4,x.n/(x.max||1)*100)}%"></i></div><em>${x.n}</em></div>`;
 
 /* ---------- Vistas ---------- */
-let voucherDraft={number:'',to:'',from:'',value:'',date:''};
+let voucherDraft={number:'',to:'',from:'',value:'',date:''},voucherAutoText='',voucherAutoMessage='';
 let voucherTemplateImage=null,voucherTemplatePromise=null,voucherFontsPromise=null;
 const voucherToday=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
 const voucherExpiry=date=>{const d=new Date(`${date||voucherToday()}T12:00:00`);d.setDate(d.getDate()+30);return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getFullYear()).slice(-2)}`};
@@ -628,6 +632,7 @@ function voucherView(){
  const canCreate=window.__nelVoucherCanCreate!==false;
  return `<div class="head hd"><div><h2>Voucher digital</h2><p>Completá los datos y generá una imagen lista para compartir.</p></div></div>
  <div class="voucher-layout"><section class="glass card voucher-form">
+  <div class="voucher-auto"><strong>Sección automática</strong><label for="voucherAutoText">Pegá el mensaje con los datos</label><textarea id="voucherAutoText" placeholder="De: Mariana\nPara: Julieta\nServicio: Manos semipermanentes\nNº: 19509">${esc(voucherAutoText)}</textarea><p class="voucher-hint" id="voucherAutoMessage" aria-live="polite">${esc(voucherAutoMessage||'Al pegar un texto con etiquetas De:, Para:, Servicio:/Valor: o Nº:, se completan los campos automáticamente. Después podés revisarlos o corregirlos.')}</p></div>
   <label>Nº interno de factura *<input id="voucherNumber" type="text" maxlength="18" inputmode="text" autocomplete="off" placeholder="Ej.: 19509" value="${esc(voucherDraft.number)}"></label>
   <label>Para *<input id="voucherTo" type="text" maxlength="42" autocomplete="off" placeholder="Nombre de quien recibe" value="${esc(voucherDraft.to)}"></label>
   <label>De *<input id="voucherFrom" type="text" maxlength="42" autocomplete="off" placeholder="Nombre de quien regala" value="${esc(voucherDraft.from)}"></label>
@@ -637,7 +642,7 @@ function voucherView(){
   <p class="voucher-error" id="voucherError" aria-live="polite"></p>
   <button class="btn" id="voucherDownload" ${canCreate?'':'disabled'}>Descargar voucher como imagen</button>
   ${canCreate?'':'<p class="voucher-hint">Tu cuenta no tiene permiso para generar vouchers. Pedile al administrador acceso de creación.</p>'}
- </section><section class="glass card voucher-preview"><canvas id="voucherCanvas" width="1746" height="1234" aria-label="Vista previa del voucher digital"></canvas></section></div>`
+ </section><section class="glass card voucher-preview"><canvas id="voucherCanvas" width="1748" height="1240" aria-label="Vista previa del voucher digital"></canvas></section></div>`
 }
 function voucherFitText(ctx,text,x,y,maxWidth,fontSize,minSize=30,font='Poppins'){
  let size=fontSize;ctx.font=`400 ${size}px "${font}",sans-serif`;while(size>minSize&&ctx.measureText(text).width>maxWidth){size-=1;ctx.font=`400 ${size}px "${font}",sans-serif`}ctx.fillText(text,x,y)
@@ -649,13 +654,13 @@ async function drawVoucherCanvas(){
  voucherFontsPromise??=Promise.all([document.fonts.load('400 62px Poppins'),document.fonts.load('400 40px Questrial')]);
  try{await voucherFontsPromise}catch{}
  const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(voucherTemplateImage,0,0,canvas.width,canvas.height);ctx.fillStyle='#73594b';ctx.textBaseline='alphabetic';ctx.textAlign='left';
- voucherFitText(ctx,voucherDraft.to.trim(),557,480,1100,62,34);voucherFitText(ctx,voucherDraft.from.trim(),480,580,1170,62,34);voucherFitText(ctx,voucherDraft.value.trim(),589,679,1090,62,34);voucherFitText(ctx,voucherExpiry(voucherDraft.date),589,866,540,62,36);
+ voucherFitText(ctx,voucherDraft.to.trim(),515,496,1160,62,34);voucherFitText(ctx,voucherDraft.from.trim(),434,584,1240,62,34);voucherFitText(ctx,voucherDraft.value.trim(),553,675,1110,62,34);voucherFitText(ctx,voucherExpiry(voucherDraft.date),549,863,570,62,36);
  ctx.fillStyle='#ffffff';voucherFitText(ctx,voucherDraft.number.trim(),1543,100,155,40,22,'Questrial');
  return true;
 }
 function downloadVoucher(){
  const number=$('#voucherNumber')?.value.trim()||'',to=$('#voucherTo')?.value.trim()||'',from=$('#voucherFrom')?.value.trim()||'',value=$('#voucherValue')?.value.trim()||'',error=$('#voucherError');
- voucherDraft={...voucherDraft,number,to,from,value};
+ voucherDraft={...voucherDraft,number,to,from,value,date:voucherToday()};
  if(!number||!to||!from||!value){error.textContent='Completá el Nº interno, Para, De y Valor / servicio.';return}
  if(window.__nelVoucherCanCreate===false){error.textContent='Tu cuenta no tiene permiso para generar vouchers.';return}
  error.textContent='';drawVoucherCanvas().then(ok=>{if(!ok)return;const canvas=$('#voucherCanvas');canvas?.toBlob(blob=>{if(!blob){error.textContent='No se pudo preparar la imagen. Revisá que la plantilla esté disponible.';return}const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=`Voucher-Sancia-${number.replace(/[^a-zA-Z0-9_-]/g,'_')}.png`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1500);toast('Voucher descargado como imagen')},'image/png')})
@@ -1421,6 +1426,15 @@ $('#main').onclick=e=>{
    else{const p=P.find(x=>x.id===t.dataset.id);if(!p)return;({edit:()=>openEdit(p),out:()=>openOut(p),plus:()=>openPlus(p),del:()=>remove(p),replenish:()=>replenishFromRepo(p),putToUse:()=>openOut(p)})[t.dataset.a]?.()}
 };
 $('#main').oninput=e=>{
+ if(e.target.id==='voucherAutoText'){
+  voucherAutoText=e.target.value;const parsed={};
+  const label=/^\s*(n\s*(?:[º°o.]|ro)?(?:\s+interno)?(?:\s+de\s+factura)?|n[uú]mero(?:\s+interno)?(?:\s+de\s+factura)?|factura(?:\s+n\s*(?:[º°o.]|ro)?)?|para|de|valor(?:\s*\/\s*servicio)?|servicio)\s*[:\-]\s*(.*?)\s*$/i;
+  for(const line of voucherAutoText.split(/\r?\n/)){const match=line.match(label);if(!match||!match[2])continue;const key=match[1].toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'');const field=/^n|^numero|^factura/.test(key)?'number':key==='para'?'to':key==='de'?'from':'value';if(!parsed[field])parsed[field]=match[2].trim()}
+  const names={number:'Nº interno',to:'Para',from:'De',value:'Servicio/valor'},found=[];
+  for(const [key,value] of Object.entries(parsed)){voucherDraft[key]=value;const input=$(`#voucher${key==='number'?'Number':key==='to'?'To':key==='from'?'From':'Value'}`);if(input)input.value=value;found.push(names[key])}
+  voucherAutoMessage=found.length?`Detecté ${found.join(', ')}. Revisá los campos y completá los que falten.`:'Todavía no detecté campos. Usá una etiqueta por línea, por ejemplo: Para: Julieta.';
+  const status=$('#voucherAutoMessage');if(status)status.textContent=voucherAutoMessage;drawVoucherCanvas();return
+ }
   if(['voucherNumber','voucherTo','voucherFrom','voucherValue'].includes(e.target.id)){voucherDraft[e.target.id==='voucherNumber'?'number':e.target.id==='voucherTo'?'to':e.target.id==='voucherFrom'?'from':'value']=e.target.value;drawVoucherCanvas();return}
  if(e.target.id==='claimSearch'){claimQuery=e.target.value;$('#claimList').innerHTML=claimRows(claimsForPeriod());return}
  if(e.target.id==='dq'){dl.q=e.target.value;dl.lim=60;$('#dbody').innerHTML=dBody();return}
