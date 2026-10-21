@@ -1377,7 +1377,7 @@ $('#main').onchange=e=>{
  if(e.target.id==='brandFilter'){brand=e.target.value;lim=20;list();return}
  const m={ty:v=>type=v,stt:v=>stat=v,ing:v=>ing=v,srt:v=>srt=v}[e.target.id];if(m){m(e.target.value);lim=20;list()}
 };
-</script></body></html>
+</script><script type="module" src="./admin.js"></script></body></html>
 
 <style>
 /* Totales y tarjetas resumen quedan fuera del destello de alertas. */
