@@ -1432,7 +1432,7 @@ $('#main').oninput=e=>{
   for(const line of voucherAutoText.split(/\r?\n/)){const match=line.match(label);if(!match||!match[2])continue;const key=match[1].toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'');const field=/^n|^numero|^factura/.test(key)?'number':key==='para'?'to':key==='de'?'from':'value';if(!parsed[field])parsed[field]=match[2].trim()}
   const names={number:'Nº interno',to:'Para',from:'De',value:'Servicio/valor'},found=[];
   for(const [key,value] of Object.entries(parsed)){voucherDraft[key]=value;const input=$(`#voucher${key==='number'?'Number':key==='to'?'To':key==='from'?'From':'Value'}`);if(input)input.value=value;found.push(names[key])}
-  voucherAutoMessage=found.length?`Detecté ${found.join(', ')}. Revisá los campos y completá los que falten.`:'Todavía no detecté campos. Usá una etiqueta por línea, por ejemplo: Para: Julieta.';
+  voucherAutoMessage=!voucherAutoText.trim()?'Al pegar un texto con etiquetas De:, Para:, Servicio:/Valor: o Nº:, se completan los campos automáticamente. Después podés revisarlos o corregirlos.':found.length?`Detecté ${found.join(', ')}. Revisá los campos y completá los que falten.`:'Todavía no detecté campos. Usá una etiqueta por línea, por ejemplo: Para: Julieta.';
   const status=$('#voucherAutoMessage');if(status)status.textContent=voucherAutoMessage;drawVoucherCanvas();return
  }
   if(['voucherNumber','voucherTo','voucherFrom','voucherValue'].includes(e.target.id)){voucherDraft[e.target.id==='voucherNumber'?'number':e.target.id==='voucherTo'?'to':e.target.id==='voucherFrom'?'from':'value']=e.target.value;drawVoucherCanvas();return}
