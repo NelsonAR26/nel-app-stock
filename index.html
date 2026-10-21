@@ -604,7 +604,7 @@ onAuthStateChanged(auth,u=>{
 });
 $('#go').onclick=()=>signInWithEmailAndPassword(auth,$('#em').value.trim(),$('#pw').value).catch(()=>$('#err').textContent='Correo o contraseña incorrectos.');
 $('#out').onclick=()=>signOut(auth);
-if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
+if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js?v=20261021-voucher-share');
 
 /* ---------- Operaciones ---------- */
 const mv=(p,kind,n,now,x={})=>({pid:p.id||'',name:p.name,brand:p.brand,type:p.type,section:p.section,kind,qty:n,at:now,...x});
