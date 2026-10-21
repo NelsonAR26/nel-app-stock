@@ -1378,3 +1378,8 @@ $('#main').onchange=e=>{
  const m={ty:v=>type=v,stt:v=>stat=v,ing:v=>ing=v,srt:v=>srt=v}[e.target.id];if(m){m(e.target.value);lim=20;list()}
 };
 </script></body></html>
+
+<style>
+/* Totales y tarjetas resumen quedan fuera del destello de alertas. */
+#main .stats,#main .stats *,#main .stat,#main .stat *{animation:none!important;opacity:1!important;transform:none!important}
+</style>
