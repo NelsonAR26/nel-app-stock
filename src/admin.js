@@ -23,8 +23,7 @@ document.body.append(dialog);
 
 function permissionEditor(prefix,permissions={}){
  return `<div class="mp-perm-row mp-perm-head"><span>Sección</span><div class="mp-perm-actions">${actions.map(([,label])=>`<b>${label}</b>`).join('')}</div></div>`+modules.map(([key,label])=>`<div class="mp-perm-row"><span class="mp-perm-name">${label}</span><div class="mp-perm-actions">${actions.map(([action])=>`<label title="${label}: ${action}"><input type="checkbox" data-perm-module="${key}" data-perm-action="${action}" ${permissions?.[key]?.[action]?'checked':''}><span>${actions.find(x=>x[0]===action)[1]}</span></label>`).join('')}</div></div>`).join('');
-}
-function readPermissions(root){const out={};root.querySelectorAll('[data-perm-module]').forEach(i=>{const {permModule:m,permAction:a}=i.dataset;(out[m]??={})[a]=i.checked});for(const p of Object.values(out))if(p.create||p.edit||p.delete)p.read=true;return out}
+}function readPermissions(root){const out={};root.querySelectorAll('[data-perm-module]').forEach(i=>{const {permModule:m,permAction:a}=i.dataset;if(i.checked)(out[m]??={})[a]=true});for(const p of Object.values(out))if(p.create||p.edit||p.delete)p.read=true;return out}
 function mountPanelButton(){
  const footer=document.querySelector('.sfoot');if(!footer||document.querySelector('#masterAccess'))return;
  const button=document.createElement('button');button.id='masterAccess';button.className='nbtn';button.type='button';button.title='Panel Maestro';button.setAttribute('aria-label','Panel Maestro');button.innerHTML='<svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>Maestro</span>';button.addEventListener('click',()=>{dialog.showModal();refreshUsers()});footer.prepend(button);
