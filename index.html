@@ -678,7 +678,7 @@ onAuthStateChanged(auth,async u=>{
 });
 $('#go').onclick=()=>{const raw=$('#em').value.trim(),identifier=raw.includes('@')?raw:`u.${raw.toLowerCase()}@nel-app-stock.invalid`;signInWithEmailAndPassword(auth,identifier,$('#pw').value).catch(()=>$('#err').textContent='Correo/usuario o contraseña incorrectos.')};
 $('#out').onclick=()=>signOut(auth);
-if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js?v=20261022-permissions-v41');
+if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js?v=20261022-permissions-v42');
 
 /* ---------- Operaciones ---------- */
 const mv=(p,kind,n,now,x={})=>({pid:p.id||'',name:p.name,brand:p.brand,type:p.type,section:p.section,kind,qty:n,at:now,...x});
@@ -795,7 +795,7 @@ function render(){
   $('#main').innerHTML=tab==='res'?resumen():tab==='inf'?report():tab==='cat'?catalog():tab==='voucher'?voucherView():tab==='insumos'?supplyView():tab==='pedidos'?orderView():tab==='reclamos'?claimsView():tab==='ent'?deliveryView():tab==='alr'?alertsView():shell();
   applyActionPermissions();
   if(tab==='voucher')drawVoucherCanvas();
- if(tab==='rep'||tab==='uso'){list();const c=$('#chips');if(c)c.scrollLeft=sl}
+ if(tab==='rep'||tab==='uso'){list();applyActionPermissions();const c=$('#chips');if(c)c.scrollLeft=sl}
 }
 const supplyToday=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
 const supplyDateLabel=s=>s?new Date(`${s}T12:00:00`).toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'}):'Sin fecha';
