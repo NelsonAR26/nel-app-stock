@@ -509,6 +509,7 @@ html{background:#A05E22}
 @media(min-width:1200px){.side{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;overflow:visible}#tabs{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:2px;overflow:visible}#tabs button{min-width:0;padding:8px 5px;gap:5px;font-size:11px}#tabs button .tl{overflow:hidden;text-overflow:ellipsis}}
 @media(min-width:761px) and (max-width:1199px){body{padding-bottom:160px}.side{display:grid;grid-template-columns:minmax(0,1fr);gap:5px;overflow:visible;padding:8px 10px}#tabs{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:2px;overflow:visible}.side #tabs button{min-width:0;min-height:40px;padding:5px 4px;gap:5px;font-size:11px}.side #tabs button .tl{overflow:hidden;text-overflow:ellipsis}.sfoot{justify-content:flex-end;border-left:0;border-top:1px solid rgba(58,91,146,.13);padding:3px 0 0}}
 @media(max-width:760px){
+ #tabs button,#tabs button.on{transition:none!important;transform:none!important;animation:none!important}
  .side-top,.sidebar-collapsed .side-top{display:contents!important}
  .side-top .logoplate{display:none!important}
  #sideToggle.side-toggle{display:grid!important;grid-column:1/-1;justify-self:center;order:3;width:38px;height:30px;min-height:30px;border-radius:99px;background:linear-gradient(135deg,#fff,#EAF1FF);box-shadow:0 4px 12px rgba(30,85,240,.16)}
@@ -610,6 +611,28 @@ $('#tabs').insertBefore(claimsTabButton,$('#tabs [data-t="ent"]'));
 $('#inst')?.remove();
 const tabPermission={rep:['polishes','read'],uso:['polishes','read'],alr:['polishes','read'],inf:['movements','read'],cat:['settings','read'],insumos:['supplyControls','read'],pedidos:['supplyOrders','read'],reclamos:['serviceClaims','read'],ent:['deliveries','read'],voucher:['vouchers','read']};
 function canOpenTab(t,access=window.__nelSectionAccess){if(!access)return false;if(access.admin)return true;const p=tabPermission[t];return !!p&&access.permissions?.[p[0]]?.[p[1]]===true}
+const actionPermissions={
+ rep:{edit:'edit',plus:'edit',out:'edit',putToUse:'edit',replenish:'edit',del:'delete',ximp:'create',undoUseImport:'edit',minset:'edit'},
+ uso:{edit:'edit',plus:'edit',out:'edit',putToUse:'edit',replenish:'edit',del:'delete',ximp:'create',undoUseImport:'edit',minset:'edit'},
+ alr:{aadd:'edit',amin:'edit',aoff:'delete'},
+ cat:{cadd:'create',cren:'edit',cdel:'delete',clogo:'edit'},
+ reclamos:{claimNew:'create',claimEdit:'edit',claimDelete:'delete',claimHide:'edit',claimRestore:'edit'},
+ ent:{dnew:'create',dimp:'create',dedit:'edit',ddel:'delete'},
+ insumos:{newSupplyArea:'create',editSupplyList:'edit',saveSupplyControl:'create',supplyPresence:'edit'},
+ pedidos:{orderAdd:'create',orderRemove:'delete',orderContactSave:'edit'},
+};
+function canDoAction(section,action,access=window.__nelSectionAccess){if(!access)return false;if(access.admin)return true;const required=actionPermissions[section]?.[action];return !required||access.permissions?.[tabPermission[section]?.[0]]?.[required]===true}
+function applyActionPermissions(){
+ const section=tab==='rep'||tab==='uso'||tab==='alr'?'polishes':tab==='cat'?'settings':tab==='reclamos'?'serviceClaims':tab==='ent'?'deliveries':tab==='insumos'?'supplyControls':tab==='pedidos'?'supplyOrders':tab==='voucher'?'vouchers':tab==='inf'?'movements':'polishes';
+ $('#add').hidden=(tab!=='rep'&&tab!=='uso')||!(window.__nelSectionAccess?.admin||window.__nelSectionAccess?.permissions?.polishes?.create===true);
+ $('#xf').disabled=!(window.__nelSectionAccess?.admin||window.__nelSectionAccess?.permissions?.[section]?.create===true);
+ $('#main').querySelectorAll('[data-a]').forEach(el=>{const a=el.dataset.a;if(actionPermissions[tab]?.[a])el.hidden=!canDoAction(tab,a)});
+ if(tab==='voucher'){
+  const allowed=window.__nelVoucherCanCreate!==false;
+  ['voucherAutoText','voucherNumber','voucherTo','voucherFrom','voucherValue'].forEach(id=>{const el=$('#'+id);if(el)el.disabled=!allowed});
+  $('#main').querySelectorAll('#voucherDownload,#voucherWhatsApp').forEach(el=>el.disabled=!allowed);
+ }
+}
 function applySectionAccess(access){
  window.__nelSectionAccess=access;
  const nav=$('#tabs');let voucher=nav.querySelector('[data-t="voucher"]');
@@ -655,7 +678,7 @@ onAuthStateChanged(auth,async u=>{
 });
 $('#go').onclick=()=>{const raw=$('#em').value.trim(),identifier=raw.includes('@')?raw:`u.${raw.toLowerCase()}@nel-app-stock.invalid`;signInWithEmailAndPassword(auth,identifier,$('#pw').value).catch(()=>$('#err').textContent='Correo/usuario o contraseña incorrectos.')};
 $('#out').onclick=()=>signOut(auth);
-if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js?v=20261022-access-mobile-v40');
+if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js?v=20261022-permissions-v41');
 
 /* ---------- Operaciones ---------- */
 const mv=(p,kind,n,now,x={})=>({pid:p.id||'',name:p.name,brand:p.brand,type:p.type,section:p.section,kind,qty:n,at:now,...x});
@@ -728,7 +751,7 @@ async function drawVoucherCanvas(){
  voucherFontsPromise??=Promise.all([document.fonts.load('400 62px Poppins'),document.fonts.load('400 40px Questrial')]);
  try{await voucherFontsPromise}catch{}
  const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(voucherTemplateImage,0,0,canvas.width,canvas.height);ctx.fillStyle='#73594b';ctx.textBaseline='alphabetic';ctx.textAlign='left';
- const fitTo=voucherFitText(ctx,voucherRecipient(),550,496,1125,62,30),fitFrom=voucherFitText(ctx,voucherDraft.from.trim(),480,578,1190,62,30),fitValue=voucherFitText(ctx,voucherDraft.value.trim(),590,660,1080,62,22),fitOk=fitTo&&fitFrom&&fitValue;
+ const fitTo=voucherFitText(ctx,voucherRecipient(),550,496,1125,62,30),fitFrom=voucherFitText(ctx,voucherDraft.from.trim(),550,578,1125,62,30),fitValue=voucherFitText(ctx,voucherDraft.value.trim(),550,660,1125,62,22),fitOk=fitTo&&fitFrom&&fitValue;
  voucherFitText(ctx,voucherExpiry(voucherDraft.date),580,863,540,62,36);
  ctx.fillStyle='#ffffff';voucherFitText(ctx,voucherDraft.number.trim(),1560,100,140,40,22,'Questrial');
  if(!fitOk){const error=$('#voucherError');if(error)error.textContent='Algún texto es demasiado largo para la plantilla. Acortalo para que se vea completo.';return false}return true;
@@ -768,8 +791,9 @@ function render(){
  const sl=$('#chips')?.scrollLeft||0;
  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
  const z=P.filter(needs).length;$('#tabs [data-t="res"] .tl').innerHTML='Resumen'+(z?` <i class="nb" aria-label="${z} en falta">${z}</i>`:'');
-  $('#add').hidden=!(tab==='rep'||tab==='uso');
+  $('#add').hidden=!(tab==='rep'||tab==='uso')||!(window.__nelSectionAccess?.admin||window.__nelSectionAccess?.permissions?.polishes?.create===true);
   $('#main').innerHTML=tab==='res'?resumen():tab==='inf'?report():tab==='cat'?catalog():tab==='voucher'?voucherView():tab==='insumos'?supplyView():tab==='pedidos'?orderView():tab==='reclamos'?claimsView():tab==='ent'?deliveryView():tab==='alr'?alertsView():shell();
+  applyActionPermissions();
   if(tab==='voucher')drawVoucherCanvas();
  if(tab==='rep'||tab==='uso'){list();const c=$('#chips');if(c)c.scrollLeft=sl}
 }
