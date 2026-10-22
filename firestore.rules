@@ -28,6 +28,14 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Nelson's verified Firebase account is the single root administrator.
+    // Staff profiles can never grant this role or change another profile.
+    function isNelsonOwner() {
+      return signedIn() &&
+        request.auth.token.email == 'sancia.nailsandbeauty@gmail.com' &&
+        request.auth.token.email_verified == true;
+    }
+
     function profilePath(uid) {
       return /databases/$(database)/documents/userAccess/$(uid);
     }
@@ -37,11 +45,12 @@ service cloud.firestore {
     }
 
     function activeUser() {
-      return hasProfile() && get(profilePath(request.auth.uid)).data.active == true;
+      return isNelsonOwner() ||
+        (hasProfile() && get(profilePath(request.auth.uid)).data.active == true);
     }
 
     function isAdmin() {
-      return activeUser() && get(profilePath(request.auth.uid)).data.role == 'admin';
+      return isNelsonOwner();
     }
 
     function can(module, action) {
@@ -127,6 +136,12 @@ service cloud.firestore {
         optionalText(data, 'email', 160) &&
         (!('loginType' in data) || data.loginType in ['username', 'email']) &&
         optionalTime(data, 'createdAt') && optionalTime(data, 'updatedAt');
+    }
+
+    function manageableProfile(uid, data) {
+      return isAdmin() && validProfile(uid, data) &&
+        ((uid == request.auth.uid && data.role == 'admin' && data.active == true) ||
+         (uid != request.auth.uid && data.role == 'staff'));
     }
 
     function validPolish(data) {
@@ -294,7 +309,7 @@ service cloud.firestore {
     match /userAccess/{uid} {
       allow get: if isAdmin() || (signedIn() && request.auth.uid == uid);
       allow list: if isAdmin();
-      allow create, update: if isAdmin() && validProfile(uid, request.resource.data);
+      allow create, update: if manageableProfile(uid, request.resource.data);
       allow delete: if false;
     }
 
