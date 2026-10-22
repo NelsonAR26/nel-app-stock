@@ -678,7 +678,7 @@ onAuthStateChanged(auth,async u=>{
 });
 $('#go').onclick=()=>{const raw=$('#em').value.trim(),identifier=raw.includes('@')?raw:`u.${raw.toLowerCase()}@nel-app-stock.invalid`;signInWithEmailAndPassword(auth,identifier,$('#pw').value).catch(()=>$('#err').textContent='Correo/usuario o contraseña incorrectos.')};
 $('#out').onclick=()=>signOut(auth);
-if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js?v=20261022-permissions-v42');
+if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js?v=20261022-permissions-v43');
 
 /* ---------- Operaciones ---------- */
 const mv=(p,kind,n,now,x={})=>({pid:p.id||'',name:p.name,brand:p.brand,type:p.type,section:p.section,kind,qty:n,at:now,...x});
@@ -1496,16 +1496,16 @@ function openWhatsApp(){
 }
 
 /* ---------- Eventos ---------- */
-const sidebarEl=$('.side'),sidebarShell=sidebarEl?.closest('.shell'),sidebarLogo=sidebarEl?.querySelector('.logoplate');
-if(sidebarEl&&sidebarShell&&sidebarLogo&&!$('#sideToggle')){
- const sideHead=document.createElement('div'),sideToggle=document.createElement('button');
- sideHead.className='side-top';sideToggle.id='sideToggle';sideToggle.type='button';sideToggle.className='side-toggle';
+const sidebarEl=$('.side'),sidebarShell=sidebarEl?.closest('.shell');
+if(sidebarEl&&sidebarShell&&!$('#sideToggle')){
+ const sideToggle=document.createElement('button');
+ sideToggle.id='sideToggle';sideToggle.type='button';sideToggle.className='side-toggle';
  sideToggle.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>';
  const mobileDock=matchMedia('(max-width:760px)');let compact=false,mobileCompact=false;try{compact=localStorage.getItem('nel-stock-sidebar-collapsed')==='1';mobileCompact=localStorage.getItem('nel-stock-mobile-dock-collapsed')==='1'}catch{}
  if(compact)sidebarShell.classList.add('sidebar-collapsed');
   if(mobileDock.matches&&mobileCompact){sidebarEl.classList.add('mobile-dock-collapsed');sidebarShell.classList.add('mobile-dock-collapsed');document.body.classList.add('mobile-dock-collapsed')}
   const syncSideToggle=()=>{const mobile=mobileDock.matches,expanded=mobile?!sidebarEl.classList.contains('mobile-dock-collapsed'):!sidebarShell.classList.contains('sidebar-collapsed'),label=expanded?'Plegar barra inferior':'Desplegar barra inferior';sideToggle.title=label;sideToggle.setAttribute('aria-label',label);sideToggle.setAttribute('aria-expanded',String(expanded))};
- sidebarEl.insertBefore(sideHead,sidebarLogo);sideHead.append(sidebarLogo,sideToggle);syncSideToggle();
+ sidebarEl.append(sideToggle);syncSideToggle();
   sideToggle.onclick=()=>{if(mobileDock.matches){const collapsed=sidebarEl.classList.toggle('mobile-dock-collapsed');sidebarShell.classList.toggle('mobile-dock-collapsed',collapsed);document.body.classList.toggle('mobile-dock-collapsed',collapsed);try{localStorage.setItem('nel-stock-mobile-dock-collapsed',collapsed?'1':'0')}catch{}}else{const collapsed=sidebarShell.classList.toggle('sidebar-collapsed');try{localStorage.setItem('nel-stock-sidebar-collapsed',collapsed?'1':'0')}catch{}}syncSideToggle()};
   mobileDock.addEventListener('change',e=>{if(e.matches){let saved=false;try{saved=localStorage.getItem('nel-stock-mobile-dock-collapsed')==='1'}catch{}sidebarEl.classList.toggle('mobile-dock-collapsed',saved);sidebarShell.classList.toggle('mobile-dock-collapsed',saved);document.body.classList.toggle('mobile-dock-collapsed',saved)}else{document.body.classList.remove('mobile-dock-collapsed')}syncSideToggle()});
 }
