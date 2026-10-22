@@ -776,7 +776,7 @@ async function downloadVoucher(){
 }
 async function shareVoucherWhatsApp(){
  if(!readVoucherForm())return;
- const recipient=voucherDraft.to.trim();const message=`Hola ${recipient} ♥, te comparto tu voucher de Sancia. ¡Esperamos que lo disfrutes!`;
+ const buyer=voucherDraft.from.trim();const message=`Hola ${buyer} ♥,\n\nGracias por tu compra de un voucher de Sancia. Recordá presentarlo en recepción o enviarlo el día que solicites tu turno.\n\nSancia`;
  const canNativeShare=navigator.share&&navigator.canShare?.({files:[new File(['voucher'],'voucher.png',{type:'image/png'})]});
  const whatsappWindow=canNativeShare?null:window.open('about:blank','_blank');
  const file=await createVoucherFile();if(!file){whatsappWindow?.close();return}
@@ -827,9 +827,9 @@ function supplyView(){
 }
 const orderItemsSelected=()=>orderGroups.flatMap(g=>g.items.filter(x=>orderSelected.has(x.id)).map(x=>({...x,groupName:g.name})));
 const orderMessage=(name=orderContact.name)=>{
- const items=orderItemsSelected(),lines=[name?`Hola ${name}! 👋`:'Hola! 👋','Nel App Stock te pasa de forma automática el pedido de insumos a comprar:',''];
+ const items=orderItemsSelected(),lines=[name?`Hola ${name}!`:'Hola!','Nel App Stock te pasa de forma automática el pedido de insumos a comprar:',''];
  orderGroups.forEach(g=>{const selected=g.items.filter(x=>orderSelected.has(x.id));if(!selected.length)return;lines.push(`*${g.name}*`);selected.forEach(x=>lines.push(`• ${x.name}`));lines.push('')});
- return items.length?lines.join('\n').trim():`${name?`Hola ${name}! 👋\n`:''}Marcá los insumos que necesitás para generar el pedido.`;
+ return items.length?lines.join('\n').trim():`${name?`Hola ${name}!\n`:''}Marcá los insumos que necesitás para generar el pedido.`;
 };
 function saveOrderState(){
  const b=writeBatch(db);
@@ -1471,9 +1471,9 @@ const waItems=()=>{const seen=new Set();
 function waMsg(name,items){
  const by={};items.forEach(p=>(by[canonPolishBrand(p.brand)]??=[]).push(p));
  const bs=Object.keys(by).sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'})),z=items.filter(p=>p.qty<1).length,l=items.length-z;
- let t=`Hola ${name||''}! 👋\nEl sistema *Nel App Stock* detectó estos esmaltes con stock bajo:\n`;
+ let t=`Hola${name?` ${name}`:''}!\nEl sistema *Nel App Stock* detectó estos esmaltes con stock bajo:\n`;
  bs.forEach(b=>{t+=`\n*${b}*\n`;by[b].sort((x,y)=>x.name.localeCompare(y.name,'es',{numeric:true})).forEach(p=>{t+=`• ${p.name}\n`})});
- return t+`\nTotal: ${items.length} esmalte${items.length===1?'':'s'} (${z} sin stock, ${l} con stock bajo).\n\nQue tengas un buen día 🌸\nSaludos cordiales.`;
+ return t+`\nTotal: ${items.length} esmalte${items.length===1?'':'s'} (${z} sin stock, ${l} con stock bajo).\n\nQue tengas un buen día.\nSaludos cordiales.`;
 }
 function openWhatsApp(){
  const items=waItems();if(!items.length){toast('No hay esmaltes en falta para avisar');return}
@@ -1587,4 +1587,4 @@ $('#main').onchange=e=>{
  if(e.target.id==='brandFilter'){brand=e.target.value;lim=20;list();return}
  const m={ty:v=>type=v,stt:v=>stat=v,ing:v=>ing=v,srt:v=>srt=v}[e.target.id];if(m){m(e.target.value);lim=20;list()}
 };
-</script><script type="module" src="./admin.js?v=20261022-owner-security-v45"></script></body></html>
+</script><script type="module" src="./admin.js?v=20261022-owner-security-v46"></script></body></html>
