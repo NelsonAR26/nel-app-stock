@@ -1,3 +1,26 @@
+// ===============================================================
+// Assumed Data Model (verified against the app source)
+// ===============================================================
+// userAccess/{uid}: uid, name, role (admin/staff), active, permissions;
+//   optional username/loginType/email and createdAt/updatedAt.
+// polishes/{id}: name, brand, type, section (rep/uso), qty, timestamps;
+//   optional min and importBatchId.
+// movements/{id}: name, brand, type, section, kind, qty, at;
+//   optional pid, adj and importBatchId.
+// serviceClaims/{id}: client, manicurist, area, serviceDate, claimDate,
+//   observations, createdAt.
+// deliveries/{id}: date, qty, product, to, sector, note, createdAt.
+// supplyControls/{id}: areaId, areaName, date, reviewer, note, items, createdAt.
+// settings/catalog: optional types, brands, logos.
+// settings/purchaser: name, phone.
+// settings/supplyCatalog: areas, updatedAt.
+// settings/supplyOrders: groups, selectedIds, updatedAt.
+// settings/supplyOrderContact: name, phone.
+// settings/cityGirlEnUsoMigrationV1: admin-only migration state.
+// polishDuplicateArchive/{id}: admin-only backup of duplicate polish records.
+// Collection queries in the app have no where/orderBy/limit clauses. Settings
+// are fetched by exact document ID; only admins list userAccess profiles.
+// ===============================================================
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -28,53 +51,309 @@ service cloud.firestore {
       );
     }
 
+    function hasOnly(data, fields) {
+      return data is map && data.keys().hasOnly(fields);
+    }
+
+    function hasRequired(data, fields) {
+      return data is map && data.keys().hasAll(fields);
+    }
+
+    function validText(data, key, maxLength) {
+      return key in data && data[key] is string &&
+        data[key].size() > 0 && data[key].size() <= maxLength;
+    }
+
+    function optionalText(data, key, maxLength) {
+      return !(key in data) ||
+        (data[key] is string && data[key].size() <= maxLength);
+    }
+
+    function validNumber(data, key, minValue, maxValue) {
+      return key in data && data[key] is number &&
+        data[key] >= minValue && data[key] <= maxValue;
+    }
+
+    function optionalNumber(data, key, minValue, maxValue) {
+      return !(key in data) ||
+        (data[key] is number && data[key] >= minValue && data[key] <= maxValue);
+    }
+
+    function optionalTime(data, key) {
+      return !(key in data) || data[key] is number || data[key] is timestamp;
+    }
+
+    function validDate(data, key) {
+      return key in data && data[key] is string &&
+        data[key].matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+
+    function validPermissionEntry(entry) {
+      return entry is map &&
+        entry.keys().hasOnly(['read', 'create', 'edit', 'delete']) &&
+        (!('read' in entry) || entry.read is bool) &&
+        (!('create' in entry) || entry.create is bool) &&
+        (!('edit' in entry) || entry.edit is bool) &&
+        (!('delete' in entry) || entry.delete is bool) &&
+        (!entry.get('create', false) || entry.get('read', false)) &&
+        (!entry.get('edit', false) || entry.get('read', false)) &&
+        (!entry.get('delete', false) || entry.get('read', false));
+    }
+
+    function validPermissions(data) {
+      let p = data.permissions;
+      return p is map && p.keys().hasOnly([
+          'polishes', 'movements', 'serviceClaims', 'deliveries',
+          'supplyControls', 'supplyOrders', 'vouchers', 'settings'
+        ]) && p.size() <= 8 &&
+        (!('polishes' in p) || validPermissionEntry(p.polishes)) &&
+        (!('movements' in p) || validPermissionEntry(p.movements)) &&
+        (!('serviceClaims' in p) || validPermissionEntry(p.serviceClaims)) &&
+        (!('deliveries' in p) || validPermissionEntry(p.deliveries)) &&
+        (!('supplyControls' in p) || validPermissionEntry(p.supplyControls)) &&
+        (!('supplyOrders' in p) || validPermissionEntry(p.supplyOrders)) &&
+        (!('vouchers' in p) || validPermissionEntry(p.vouchers)) &&
+        (!('settings' in p) || validPermissionEntry(p.settings));
+    }
+
+    function validProfile(uid, data) {
+      return hasOnly(data, [
+          'uid', 'name', 'username', 'loginType', 'email', 'role', 'active',
+          'permissions', 'createdAt', 'updatedAt'
+        ]) && hasRequired(data, ['uid', 'name', 'role', 'active', 'permissions']) &&
+        data.uid == uid && validText(data, 'name', 80) &&
+        data.role in ['admin', 'staff'] && data.active is bool &&
+        validPermissions(data) && optionalText(data, 'username', 30) &&
+        optionalText(data, 'email', 160) &&
+        (!('loginType' in data) || data.loginType in ['username', 'email']) &&
+        optionalTime(data, 'createdAt') && optionalTime(data, 'updatedAt');
+    }
+
+    function validPolish(data) {
+      return hasOnly(data, [
+          'id', 'name', 'brand', 'type', 'section', 'qty', 'createdAt', 'lastIn',
+          'lastOut', 'min', 'importBatchId'
+        ]) && hasRequired(data, ['name', 'brand', 'type', 'section', 'qty']) &&
+        optionalText(data, 'id', 150) && validText(data, 'name', 160) && validText(data, 'brand', 100) &&
+        validText(data, 'type', 100) && data.section in ['rep', 'uso'] &&
+        validNumber(data, 'qty', 0, 1000000) &&
+        optionalNumber(data, 'min', 0, 1000000) &&
+        optionalTime(data, 'createdAt') && optionalTime(data, 'lastIn') &&
+        (!(('lastOut' in data)) || data.lastOut == null ||
+          (data.lastOut is number && data.lastOut >= 0)) &&
+        optionalText(data, 'importBatchId', 100);
+    }
+
+    function validMovement(data) {
+      return hasOnly(data, [
+          'pid', 'name', 'brand', 'type', 'section', 'kind', 'qty', 'at',
+          'adj', 'importBatchId'
+        ]) && hasRequired(data, [
+          'name', 'brand', 'type', 'section', 'kind', 'qty', 'at'
+        ]) && validText(data, 'name', 160) && validText(data, 'brand', 100) &&
+        validText(data, 'type', 100) && data.section in ['rep', 'uso'] &&
+        data.kind in ['in', 'out'] && validNumber(data, 'qty', 1, 1000000) &&
+        validNumber(data, 'at', 0, 4102444800000) &&
+        optionalText(data, 'pid', 100) &&
+        (!('adj' in data) || data.adj is bool) &&
+        optionalText(data, 'importBatchId', 100);
+    }
+
+    function validClaim(data) {
+      return hasOnly(data, [
+          'client', 'manicurist', 'area', 'serviceDate', 'claimDate',
+          'observations', 'createdAt'
+        ]) && hasRequired(data, [
+          'client', 'manicurist', 'area', 'serviceDate', 'claimDate',
+          'observations', 'createdAt'
+        ]) && validText(data, 'client', 160) &&
+        validText(data, 'manicurist', 100) && data.area in ['Manos', 'Pies'] &&
+        validDate(data, 'serviceDate') && validDate(data, 'claimDate') &&
+        data.observations is string && data.observations.size() <= 2000 &&
+        validNumber(data, 'createdAt', 0, 4102444800000);
+    }
+
+    function validDelivery(data) {
+      return hasOnly(data, [
+          'date', 'qty', 'product', 'to', 'sector', 'note', 'createdAt'
+        ]) && hasRequired(data, [
+          'date', 'qty', 'product', 'to', 'sector', 'note', 'createdAt'
+        ]) && validDate(data, 'date') && validNumber(data, 'qty', 1, 1000000) &&
+        validText(data, 'product', 160) && data.to is string &&
+        data.to.size() <= 120 && validText(data, 'sector', 100) &&
+        data.note is string && data.note.size() <= 2000 &&
+        validNumber(data, 'createdAt', 0, 4102444800000);
+    }
+
+    function validSupplyControl(data) {
+      return hasOnly(data, [
+          'areaId', 'areaName', 'date', 'reviewer', 'note', 'items', 'createdAt'
+        ]) && hasRequired(data, [
+          'areaId', 'areaName', 'date', 'reviewer', 'note', 'items', 'createdAt'
+        ]) && validText(data, 'areaId', 80) && validText(data, 'areaName', 100) &&
+        validDate(data, 'date') && validText(data, 'reviewer', 80) &&
+        data.note is string && data.note.size() <= 1000 &&
+        data.items is list && data.items.size() <= 250 &&
+        validNumber(data, 'createdAt', 0, 4102444800000);
+    }
+
+    function validCatalog(data) {
+      return hasOnly(data, ['types', 'brands', 'logos']) &&
+        (!('types' in data) || (data.types is list && data.types.size() <= 100)) &&
+        (!('brands' in data) || (data.brands is list && data.brands.size() <= 200)) &&
+        (!('logos' in data) || (data.logos is map && data.logos.size() <= 200));
+    }
+
+    function validPurchaser(data) {
+      return hasOnly(data, ['name', 'phone']) &&
+        hasRequired(data, ['name', 'phone']) && data.name is string &&
+        data.name.size() <= 100 && data.phone is string && data.phone.size() <= 30;
+    }
+
+    function validSupplyCatalog(data) {
+      return hasOnly(data, ['areas', 'updatedAt']) &&
+        hasRequired(data, ['areas']) && data.areas is list &&
+        data.areas.size() <= 40 && optionalTime(data, 'updatedAt');
+    }
+
+    function validSupplyOrders(data) {
+      return hasOnly(data, ['groups', 'selectedIds', 'updatedAt']) &&
+        hasRequired(data, ['groups', 'selectedIds']) && data.groups is list &&
+        data.groups.size() <= 40 && data.selectedIds is list &&
+        data.selectedIds.size() <= 500 && optionalTime(data, 'updatedAt');
+    }
+
+    function validOrderContact(data) {
+      return hasOnly(data, ['name', 'phone']) &&
+        hasRequired(data, ['name', 'phone']) && data.name is string &&
+        data.name.size() <= 100 && data.phone is string && data.phone.size() <= 30;
+    }
+
+    function validMigrationMarker(data) {
+      return hasOnly(data, [
+          'status', 'startedAt', 'completedAt', 'lastAttemptAt', 'groups',
+          'archived', 'removed', 'renamed', 'keepPolicy', 'archiveCollection'
+        ]) && data.status in ['running', 'pending', 'done'] &&
+        optionalTime(data, 'startedAt') && optionalTime(data, 'completedAt') &&
+        optionalTime(data, 'lastAttemptAt') && optionalNumber(data, 'groups', 0, 100000) &&
+        optionalNumber(data, 'archived', 0, 100000) &&
+        optionalNumber(data, 'removed', 0, 100000) &&
+        optionalNumber(data, 'renamed', 0, 100000) &&
+        optionalText(data, 'keepPolicy', 200) &&
+        optionalText(data, 'archiveCollection', 100);
+    }
+
+    function validArchive(data) {
+      return hasOnly(data, ['sourceId', 'migration', 'archivedAt', 'reason', 'original']) &&
+        hasRequired(data, ['sourceId', 'migration', 'archivedAt', 'reason', 'original']) &&
+        validText(data, 'sourceId', 150) && data.migration == 'cityGirlEnUsoMigrationV1' &&
+        validNumber(data, 'archivedAt', 0, 4102444800000) &&
+        validText(data, 'reason', 200) && validPolish(data.original);
+    }
+
+    function canReadSetting(id) {
+      return isAdmin() ||
+        (id == 'catalog' && (can('settings', 'read') || can('polishes', 'read'))) ||
+        (id == 'purchaser' && can('settings', 'read')) ||
+        (id == 'supplyCatalog' && can('supplyControls', 'read')) ||
+        ((id == 'supplyOrders' || id == 'supplyOrderContact') &&
+          can('supplyOrders', 'read')) ||
+        (id == 'cityGirlEnUsoMigrationV1' && isAdmin());
+    }
+
+    function canCreateSetting(id) {
+      return isAdmin() ||
+        (id == 'catalog' && (can('settings', 'create') || can('polishes', 'create') || can('polishes', 'edit'))) ||
+        (id == 'purchaser' && can('settings', 'create')) ||
+        (id == 'supplyCatalog' && can('supplyControls', 'create')) ||
+        ((id == 'supplyOrders' || id == 'supplyOrderContact') &&
+          can('supplyOrders', 'create')) ||
+        (id == 'cityGirlEnUsoMigrationV1' && isAdmin());
+    }
+
+    function canUpdateSetting(id) {
+      return isAdmin() ||
+        (id == 'catalog' &&
+          (can('settings', 'edit') || can('polishes', 'create') || can('polishes', 'edit'))) ||
+        (id == 'purchaser' && can('settings', 'edit')) ||
+        (id == 'supplyCatalog' && can('supplyControls', 'edit')) ||
+        ((id == 'supplyOrders' || id == 'supplyOrderContact') &&
+          can('supplyOrders', 'edit')) ||
+        (id == 'cityGirlEnUsoMigrationV1' && isAdmin());
+    }
+
+    function validSetting(id, data) {
+      return (id == 'catalog' && validCatalog(data)) ||
+        (id == 'purchaser' && validPurchaser(data)) ||
+        (id == 'supplyCatalog' && validSupplyCatalog(data)) ||
+        (id == 'supplyOrders' && validSupplyOrders(data)) ||
+        (id == 'supplyOrderContact' && validOrderContact(data)) ||
+        (id == 'cityGirlEnUsoMigrationV1' && validMigrationMarker(data));
+    }
+
     match /userAccess/{uid} {
       allow get: if isAdmin() || (signedIn() && request.auth.uid == uid);
       allow list: if isAdmin();
-      allow create, update, delete: if isAdmin();
+      allow create, update: if isAdmin() && validProfile(uid, request.resource.data);
+      allow delete: if false;
     }
 
     match /polishes/{id} {
       allow get, list: if can('polishes', 'read');
-      allow create: if can('polishes', 'create');
-      allow update: if can('polishes', 'edit');
+      allow create: if can('polishes', 'create') && validPolish(request.resource.data);
+      allow update: if can('polishes', 'edit') && validPolish(request.resource.data);
       allow delete: if can('polishes', 'delete');
     }
 
     match /movements/{id} {
-      allow get, list: if can('movements', 'read') || can('polishes', 'read');
+      allow get, list: if can('movements', 'read');
       // Stock changes write their audit movement in the same atomic batch.
-      allow create: if can('movements', 'create') || can('polishes', 'create') || can('polishes', 'edit');
-      allow update: if can('movements', 'edit');
+      allow create: if (can('movements', 'create') || can('polishes', 'create') || can('polishes', 'edit')) && validMovement(request.resource.data);
+      allow update: if can('movements', 'edit') && validMovement(request.resource.data);
       allow delete: if can('movements', 'delete');
     }
 
     match /serviceClaims/{id} {
       allow get, list: if can('serviceClaims', 'read');
-      allow create: if can('serviceClaims', 'create');
-      allow update: if can('serviceClaims', 'edit');
+      allow create: if can('serviceClaims', 'create') && validClaim(request.resource.data);
+      allow update: if can('serviceClaims', 'edit') && validClaim(request.resource.data);
       allow delete: if can('serviceClaims', 'delete');
     }
 
     match /deliveries/{id} {
       allow get, list: if can('deliveries', 'read');
-      allow create: if can('deliveries', 'create');
-      allow update: if can('deliveries', 'edit');
+      allow create: if can('deliveries', 'create') && validDelivery(request.resource.data);
+      allow update: if can('deliveries', 'edit') && validDelivery(request.resource.data);
       allow delete: if can('deliveries', 'delete');
     }
 
     match /supplyControls/{id} {
       allow get, list: if can('supplyControls', 'read');
-      allow create: if can('supplyControls', 'create');
-      allow update: if can('supplyControls', 'edit');
+      allow create: if can('supplyControls', 'create') && validSupplyControl(request.resource.data);
+      allow update: if can('supplyControls', 'edit') && validSupplyControl(request.resource.data);
       allow delete: if can('supplyControls', 'delete');
     }
 
     match /settings/{id} {
-      allow get, list: if activeUser();
-      allow create: if can('settings', 'create') || can('polishes', 'create') || can('polishes', 'edit');
-      allow update: if can('settings', 'edit') || can('polishes', 'create') || can('polishes', 'edit');
-      allow delete: if can('settings', 'delete');
+      allow get: if canReadSetting(id);
+      allow list: if false;
+      allow create: if canCreateSetting(id) && validSetting(id, request.resource.data);
+      allow update: if canUpdateSetting(id) && validSetting(id, request.resource.data);
+      allow delete: if isAdmin() ||
+        (id == 'catalog' && can('settings', 'delete')) ||
+        (id == 'purchaser' && can('settings', 'delete')) ||
+        (id == 'supplyCatalog' && can('supplyControls', 'delete')) ||
+        ((id == 'supplyOrders' || id == 'supplyOrderContact') && can('supplyOrders', 'delete'));
+    }
+
+    match /polishDuplicateArchive/{id} {
+      allow get, list: if isAdmin();
+      allow create, update: if isAdmin() && validArchive(request.resource.data);
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

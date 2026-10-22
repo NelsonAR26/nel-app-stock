@@ -4,6 +4,7 @@ Control de stock de esmaltes (Reposición / En uso / Informe). PWA con Firebase 
 ## Puesta en marcha
 1. https://console.firebase.google.com → Crear proyecto → agregar app Web → copiar `firebaseConfig` en `index.html`.
 2. Authentication → Método de acceso → activar **Correo/contraseña** → Users → crear tu usuario.
+   - El administrador ingresa con su correo y contraseña. Las cuentas de equipo se crean desde **Panel Maestro** y entran con usuario y contraseña; desde allí se eligen las secciones habilitadas.
 3. Firestore Database → Crear base de datos → pegar el contenido de `firestore.rules` en la pestaña Reglas.
 4. Publicar:
    - Firebase Hosting: `npm i -g firebase-tools && firebase login && firebase init hosting` (public = `.`, no SPA) → `firebase deploy`
