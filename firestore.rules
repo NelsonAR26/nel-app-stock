@@ -308,7 +308,7 @@ service cloud.firestore {
       allow get: if isAdmin() || (signedIn() && request.auth.uid == uid);
       allow list: if isAdmin();
       allow create, update: if manageableProfile(uid, request.resource.data);
-      allow delete: if false;
+      allow delete: if isAdmin() && uid != request.auth.uid && resource.data.uid == uid && resource.data.role == 'staff';
     }
 
     match /polishes/{id} {
@@ -362,7 +362,7 @@ service cloud.firestore {
     match /polishDuplicateArchive/{id} {
       allow get, list: if isAdmin();
       allow create, update: if isAdmin() && validArchive(request.resource.data);
-      allow delete: if false;
+      allow delete: if isAdmin() && uid != request.auth.uid && resource.data.uid == uid && resource.data.role == 'staff';
     }
 
     match /{document=**} {
