@@ -341,7 +341,9 @@ dialog textarea#wm{line-height:1.45;font-size:14px}
  body{padding-bottom:calc(112px + env(safe-area-inset-bottom))}
  .shell{padding:10px 10px calc(100px + env(safe-area-inset-bottom))}
  .side{display:flex;flex-direction:row;position:fixed;top:auto;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));left:10px;z-index:60;width:auto;height:auto;min-height:0;justify-content:flex-start;margin:0;padding:7px 8px;border-radius:23px;background:rgba(246,250,255,.94);box-shadow:0 16px 38px rgba(16,54,150,.28),inset 0 1px 0 #fff;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
- .side-top{display:none}
+ .side-top{display:contents}
+ .side-top .logoplate{display:none}
+ .side-toggle{display:grid;order:3;width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#fff,#EAF1FF);box-shadow:0 5px 13px rgba(30,85,240,.16)}
  #tabs{order:1;flex:1 1 0;min-width:0;gap:3px;overflow-x:auto;overscroll-behavior-x:contain}
  #tabs button{flex:0 0 36px;width:36px;min-height:44px;padding:8px 5px;border-radius:15px}
  #tabs button.on{flex-basis:76px;justify-content:center;gap:6px;padding:8px 9px;background:linear-gradient(135deg,#1E55F0,#418AFF);border-color:transparent;color:#fff;box-shadow:0 7px 16px rgba(30,85,240,.28)}
@@ -350,6 +352,10 @@ dialog textarea#wm{line-height:1.45;font-size:14px}
  .sfoot{order:2;display:flex;flex:0 0 auto;align-items:center;gap:1px;margin:0 0 0 auto;padding:0 0 0 5px;border:0;border-left:1px solid rgba(19,33,63,.12)}
  .nbtn{width:34px;min-height:40px;justify-content:center;padding:8px 5px;border-radius:12px}
  .nbtn .ni{width:18px;height:18px}
+ .mobile-dock-collapsed .side{left:auto;right:14px;width:54px;justify-content:center;padding:6px;border-radius:50%}
+ .mobile-dock-collapsed #tabs,.mobile-dock-collapsed .sfoot{display:none}
+ .mobile-dock-collapsed .side-toggle{order:0}
+ .mobile-dock-collapsed .side-toggle svg{transform:rotate(180deg)}
  .fab{bottom:calc(98px + env(safe-area-inset-bottom));right:14px}
  #toast{bottom:calc(94px + env(safe-area-inset-bottom))}
 }
@@ -501,6 +507,16 @@ html{background:#A05E22}
 /* Desktop dock: keep every section visible, wrapping into two rows on laptop widths. */
 @media(min-width:1200px){.side{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;overflow:visible}#tabs{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:2px;overflow:visible}#tabs button{min-width:0;padding:8px 5px;gap:5px;font-size:11px}#tabs button .tl{overflow:hidden;text-overflow:ellipsis}}
 @media(min-width:761px) and (max-width:1199px){body{padding-bottom:160px}.side{display:grid;grid-template-columns:minmax(0,1fr);gap:5px;overflow:visible;padding:8px 10px}#tabs{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:2px;overflow:visible}.side #tabs button{min-width:0;min-height:40px;padding:5px 4px;gap:5px;font-size:11px}.side #tabs button .tl{overflow:hidden;text-overflow:ellipsis}.sfoot{justify-content:flex-end;border-left:0;border-top:1px solid rgba(58,91,146,.13);padding:3px 0 0}}
+@media(max-width:760px){
+ .side-top,.sidebar-collapsed .side-top{display:contents!important}
+ .side-top .logoplate{display:none!important}
+ #sideToggle.side-toggle{display:grid!important;grid-column:1/-1;justify-self:center;order:3;width:38px;height:30px;min-height:30px;border-radius:99px;background:linear-gradient(135deg,#fff,#EAF1FF);box-shadow:0 4px 12px rgba(30,85,240,.16)}
+ #sideToggle.side-toggle svg{transform:rotate(-90deg)}
+ .mobile-dock-collapsed .side{grid-template-rows:auto;width:56px;max-height:none;overflow:hidden;padding:6px;border-radius:50%}
+ .mobile-dock-collapsed #tabs,.mobile-dock-collapsed .sfoot{display:none!important}
+ .mobile-dock-collapsed #sideToggle.side-toggle{grid-column:auto;order:0;width:42px;height:42px;border-radius:50%}
+ .mobile-dock-collapsed #sideToggle svg{transform:rotate(90deg)}
+}
 </style>
 </head><body>
 <div id="login" class="login" hidden><div class="glass"><div class="logoplate lg2"><img src="logo.png" alt="Sancia"></div><p class="lb"><b>Nel App Stock</b><span>by Nelson Carrizo</span></p><p>Ingresá para continuar</p>
@@ -1421,11 +1437,13 @@ if(sidebarEl&&sidebarShell&&sidebarLogo&&!$('#sideToggle')){
  const sideHead=document.createElement('div'),sideToggle=document.createElement('button');
  sideHead.className='side-top';sideToggle.id='sideToggle';sideToggle.type='button';sideToggle.className='side-toggle';
  sideToggle.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>';
- let compact=false;try{compact=localStorage.getItem('nel-stock-sidebar-collapsed')==='1'}catch{}
+ const mobileDock=matchMedia('(max-width:760px)');let compact=false,mobileCompact=false;try{compact=localStorage.getItem('nel-stock-sidebar-collapsed')==='1';mobileCompact=localStorage.getItem('nel-stock-mobile-dock-collapsed')==='1'}catch{}
  if(compact)sidebarShell.classList.add('sidebar-collapsed');
- const syncSideToggle=()=>{const expanded=!sidebarShell.classList.contains('sidebar-collapsed'),label=expanded?'Contraer barra lateral':'Expandir barra lateral';sideToggle.title=label;sideToggle.setAttribute('aria-label',label);sideToggle.setAttribute('aria-expanded',String(expanded))};
+ if(mobileDock.matches&&mobileCompact)sidebarShell.classList.add('mobile-dock-collapsed');
+ const syncSideToggle=()=>{const mobile=mobileDock.matches,expanded=mobile?!sidebarShell.classList.contains('mobile-dock-collapsed'):!sidebarShell.classList.contains('sidebar-collapsed'),label=expanded?'Plegar barra inferior':'Desplegar barra inferior';sideToggle.title=label;sideToggle.setAttribute('aria-label',label);sideToggle.setAttribute('aria-expanded',String(expanded))};
  sidebarEl.insertBefore(sideHead,sidebarLogo);sideHead.append(sidebarLogo,sideToggle);syncSideToggle();
- sideToggle.onclick=()=>{const collapsed=sidebarShell.classList.toggle('sidebar-collapsed');try{localStorage.setItem('nel-stock-sidebar-collapsed',collapsed?'1':'0')}catch{}syncSideToggle()};
+ sideToggle.onclick=()=>{if(mobileDock.matches){const collapsed=sidebarShell.classList.toggle('mobile-dock-collapsed');try{localStorage.setItem('nel-stock-mobile-dock-collapsed',collapsed?'1':'0')}catch{}}else{const collapsed=sidebarShell.classList.toggle('sidebar-collapsed');try{localStorage.setItem('nel-stock-sidebar-collapsed',collapsed?'1':'0')}catch{}}syncSideToggle()};
+ mobileDock.addEventListener('change',syncSideToggle);
 }
 $('#add').onclick=openAdd;
 addEventListener('online',()=>migrateCityGirlEnUso());
