@@ -362,7 +362,7 @@ service cloud.firestore {
     match /polishDuplicateArchive/{id} {
       allow get, list: if isAdmin();
       allow create, update: if isAdmin() && validArchive(request.resource.data);
-      allow delete: if isAdmin() && uid != request.auth.uid && resource.data.uid == uid && resource.data.role == 'staff';
+      allow delete: if false;
     }
 
     match /{document=**} {
