@@ -610,8 +610,8 @@ claimsTabButton.innerHTML='<svg class="ni" viewBox="0 0 24 24" aria-hidden="true
 $('#tabs').insertBefore(claimsTabButton,$('#tabs [data-t="ent"]'));
 $('#inst')?.remove();
 const tabPermission={rep:['polishes','read'],uso:['polishes','read'],alr:['polishes','read'],inf:['movements','read'],cat:['settings','read'],insumos:['supplyControls','read'],pedidos:['supplyOrders','read'],reclamos:['serviceClaims','read'],ent:['deliveries','read'],voucher:['vouchers','read']};
-const OWNER_EMAIL='sancia.nailsandbeauty@gmail.com';
-const isNelsonOwner=user=>user?.email?.toLowerCase()===OWNER_EMAIL&&user.emailVerified===true;
+ const OWNER_UID='m4NQqQ4cMlMcUy6C1ItwAH6un5G3';
+ const isNelsonOwner=user=>user?.uid===OWNER_UID;
 function canOpenTab(t,access=window.__nelSectionAccess){if(!access)return false;if(access.admin)return true;const p=tabPermission[t];return !!p&&access.permissions?.[p[0]]?.[p[1]]===true}
 const actionPermissions={
  rep:{edit:'edit',plus:'edit',out:'edit',putToUse:'edit',replenish:'edit',del:'delete',ximp:'create',undoUseImport:'edit',minset:'edit'},
@@ -790,7 +790,7 @@ function render(){
   const next=[...$('#tabs').querySelectorAll('[data-t]')].find(b=>!b.hidden);
   tab=next?.dataset.t||'';
  }
- if(!tab){$('#main').innerHTML='<div class="glass card"><h2>Sin secciones habilitadas</h2><p>Pedile al administrador que active al menos una sección para tu usuario.</p></div>';return}
+ if(!tab){$('#add').hidden=true;$('#xf').disabled=true;$('#main').innerHTML='<div class="glass card"><h2>Sin secciones habilitadas</h2><p>Pedile al administrador que active al menos una sección para tu usuario.</p></div>';return}
  const sl=$('#chips')?.scrollLeft||0;
  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
  const z=P.filter(needs).length;$('#tabs [data-t="res"] .tl').innerHTML='Resumen'+(z?` <i class="nb" aria-label="${z} en falta">${z}</i>`:'');

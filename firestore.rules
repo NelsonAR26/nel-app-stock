@@ -28,12 +28,10 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Nelson's verified Firebase account is the single root administrator.
+    // This Firebase Auth UID is the single root administrator.
     // Staff profiles can never grant this role or change another profile.
     function isNelsonOwner() {
-      return signedIn() &&
-        request.auth.token.email == 'sancia.nailsandbeauty@gmail.com' &&
-        request.auth.token.email_verified == true;
+      return signedIn() && request.auth.uid == 'm4NQqQ4cMlMcUy6C1ItwAH6un5G3';
     }
 
     function profilePath(uid) {

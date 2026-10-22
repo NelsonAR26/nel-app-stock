@@ -1,4 +1,4 @@
-const C='nel-stock-v45',F=['./','index.html','manifest.webmanifest','icons/icon-192.png','icons/icon-512.png','voucher-template.png'];
+const C='nel-stock-v46',F=['./','index.html','manifest.webmanifest','icons/icon-192.png','icons/icon-512.png','voucher-template.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(F)));self.skipWaiting()});
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))).then(()=>clients.claim())));
 self.addEventListener('fetch',e=>{
