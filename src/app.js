@@ -99,7 +99,7 @@ function applyActionPermissions(){
 function applySectionAccess(access){
  window.__nelSectionAccess=access;
  const nav=$('#tabs');let voucher=nav.querySelector('[data-t="voucher"]');
- if(access.admin||access.permissions?.vouchers?.read||access.permissions?.vouchers?.create){
+ if(access.admin||access.permissions?.vouchers?.read){
   if(!voucher){voucher=document.createElement('button');voucher.dataset.t='voucher';voucher.title='Voucher digital';voucher.innerHTML='<svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12v8H4v-8M2 7h20v5H2zM12 7v13M12 7H8.5a2.5 2.5 0 1 1 2.35-3.35L12 7Zm0 0h3.5a2.5 2.5 0 1 0-2.35-3.35L12 7Z"/></svg><span class="tl">Voucher</span>';nav.append(voucher)}
  }else voucher?.remove();
  nav.querySelectorAll('[data-t]').forEach(b=>{b.hidden=!canOpenTab(b.dataset.t,access)});
