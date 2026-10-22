@@ -1,1 +1,24 @@
-{"hosting":{"public":".","ignore":["firebase.json","firestore.rules","README.md",".git/**","node_modules/**","functions/**"]},"firestore":{"rules":"firestore.rules"},"functions":{"source":"functions"}}
+{
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "firestore.rules",
+      "README.md",
+      ".git/**",
+      "node_modules/**",
+      "functions/**",
+      ".pnpm-home/**",
+      ".pnpm-cache/**",
+      ".firebase/**",
+      "firebase-debug.log",
+      "firebase-debug.*.log"
+    ]
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "functions": {
+    "source": "functions"
+  }
+}
