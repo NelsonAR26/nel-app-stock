@@ -110,7 +110,7 @@ function subscribeAuthorizedData(user,access){
  unsub.forEach(f=>f());unsub=[];D=[];claimRecords=[];M=[];P=[];C={};movementReady=false;supplyCatalogReady=false;supplyHistoryReady=false;supplyChecks=[];supplyAreas=[{id:'manos',name:'Manos',items:[]}];supplyDrafts={};supplyDirty={};orderGroups=freshOrderGroups();orderSelected=new Set();orderReady=false;orderContact={name:'',phone:''};
  PU={name:'Gabriela Vicario',phone:''};
  const er=()=>toast('Sin permiso o sin conexión con la base de datos'),p=access.permissions||{},admin=access.admin,can=(m,a)=>admin||p?.[m]?.[a]===true;
- if(can('polishes','read'))unsub.push(onSnapshot(collection(db,'polishes'),s=>{P=s.docs.map(d=>{const data=d.data();return {id:d.id,...data,sourceBrand:data.brand,brand:canonPolishBrand(data.brand)}});render();if(admin)migrateCityGirlEnUso()},er));
+ if(can('polishes','read'))unsub.push(onSnapshot(collection(db,'polishes'),s=>{P=s.docs.map(d=>{const data=d.data();return {id:d.id,...data,sourceBrand:data.brand,brand:canonPolishBrand(data.brand)}});render();},er));
  if(can('movements','read'))unsub.push(onSnapshot(collection(db,'movements'),s=>{M=s.docs.map(d=>({...d.data(),id:d.id}));movementReady=true;if(tab==='inf')render()},er));
  if(can('settings','read'))unsub.push(onSnapshot(doc(db,'settings','purchaser'),s=>{if(s.exists())PU={...PU,...s.data()}},er));
  if(can('deliveries','read'))unsub.push(onSnapshot(collection(db,'deliveries'),s=>{D=s.docs.map(d=>({id:d.id,...d.data()}));if(tab==='ent')render()},er));
@@ -973,7 +973,7 @@ if(sidebarEl&&sidebarShell&&!$('#sideToggle')){
   mobileDock.addEventListener('change',e=>{if(e.matches){let saved=false;try{saved=localStorage.getItem('nel-stock-mobile-dock-collapsed')==='1'}catch{}sidebarEl.classList.toggle('mobile-dock-collapsed',saved);sidebarShell.classList.toggle('mobile-dock-collapsed',saved);document.body.classList.toggle('mobile-dock-collapsed',saved)}else{document.body.classList.remove('mobile-dock-collapsed')}syncSideToggle()});
 }
 $('#add').onclick=openAdd;
-addEventListener('online',()=>{if(window.__nelSectionAccess?.admin)migrateCityGirlEnUso()});
+
 $('#tabs').onclick=e=>{const t=e.target.closest('[data-t]')?.dataset.t;if(t&&canOpenTab(t)){tab=t;brand='Todas';if(t==='uso')srt='brand';$('#chips')?.scrollTo(0,0);type='Todos';stat='Todos';lim=20;render()}};
 $('#main').onclick=e=>{
   const t=e.target.closest('[data-brand],[data-days],[data-a],[data-more],[data-sc],[data-go],#voucherDownload,#voucherWhatsApp');if(!t)return;
