@@ -206,7 +206,7 @@ function voucherView(){
 function voucherFitText(ctx,text,x,y,maxWidth,fontSize,minSize=30,font='Poppins'){
  let size=fontSize;ctx.font=`400 ${size}px "${font}",sans-serif`;while(size>minSize&&ctx.measureText(text).width>maxWidth){size-=1;ctx.font=`400 ${size}px "${font}",sans-serif`}ctx.fillText(text,x,y);return ctx.measureText(text).width<=maxWidth
 }
-function voucherRecipient(){const to=voucherDraft.to.trim();return to&&!to.endsWith('♥')?`${to} ♥`:to}
+function voucherRecipient() {const to=voucherDraft.to.trim();return to&&!to.endsWith('♥')?`${to} ♥`:to}
 async function drawVoucherCanvas(){
  const canvas=$('#voucherCanvas');if(!canvas)return;
  if(!voucherTemplateImage){voucherTemplateImage=new Image();voucherTemplatePromise=new Promise((resolve,reject)=>{voucherTemplateImage.onload=()=>resolve(voucherTemplateImage);voucherTemplateImage.onerror=()=>reject(new Error('No se pudo cargar la plantilla'))});voucherTemplateImage.src='./voucher-template.png'}
@@ -214,7 +214,7 @@ async function drawVoucherCanvas(){
  voucherFontsPromise??=Promise.all([document.fonts.load('400 62px Poppins'),document.fonts.load('400 40px Questrial')]);
  try{await voucherFontsPromise}catch{}
  const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(voucherTemplateImage,0,0,canvas.width,canvas.height);ctx.fillStyle='#73594b';ctx.textBaseline='alphabetic';ctx.textAlign='left';
- const fitTo=voucherFitText(ctx,voucherRecipient(),550,496,1125,62,30),fitFrom=voucherFitText(ctx,voucherDraft.from.trim(),550,578,1125,62,30),fitValue=voucherFitText(ctx,voucherDraft.value.trim(),550,660,1125,62,22),fitOk=fitTo&&fitFrom&&fitValue;
+ const fitTo=voucherFitText(ctx,voucherRecipient() ,520,500,1125,62,30),fitFrom=voucherFitText(ctx,voucherDraft.from.trim(),460,590,1125,62,30),fitValue=voucherFitText(ctx,voucherDraft.value.trim(),550,660,1125,62,22),fitOk=fitTo&&fitFrom&&fitValue;
  voucherFitText(ctx,voucherExpiry(voucherDraft.date),580,863,540,62,36);
  ctx.fillStyle='#ffffff';voucherFitText(ctx,voucherDraft.number.trim(),1560,100,140,40,22,'Questrial');
  if(!fitOk){const error=$('#voucherError');if(error)error.textContent='Algún texto es demasiado largo para la plantilla. Acortalo para que se vea completo.';return false}return true;
