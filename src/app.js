@@ -13,7 +13,7 @@ const fmt=t=>t?new Date(t).toLocaleDateString('es-AR',{day:'2-digit',month:'shor
 const norm=s=>String(s??'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
 const canonPolishBrand=b=>{const n=norm(b);return n==='city girl'||n==='city girls'?'City Girl':String(b??'').trim()};
 const key=x=>[x.name,canonPolishBrand(x.brand),x.type].map(norm).join('|');
-const polishKey=x=>[norm(x.name),norm(canonPolishBrand(x.brand))].join('|');
+const polishKey=x=>[norm(x.name),norm(canonPolishBrand(x.brand)),norm(x.type)].join('|');
 const samePolish=(a,b)=>polishKey(a)===polishKey(b);
 const repoFor=p=>P.find(x=>x.section==='rep'&&samePolish(x,p)&&x.qty>0)||P.find(x=>x.section==='rep'&&samePolish(x,p));
 const hue=s=>Math.abs([...norm(s)].reduce((a,c)=>(a*31+c.charCodeAt(0))|0,7))%360;
@@ -462,7 +462,7 @@ function openAdd(){
  <p class="er" id="er"></p><div class="row"><button class="btn o" id="no">Cancelar</button><button class="btn" id="ok">Guardar</button></div>`,()=>{
   const name=$('#n').value.trim(),b=pickBrand().trim(),t=$('#t').value,c=parseInt($('#c').value)||0,s=$('#s').value;
   if(!name||!b||c<1){$('#er').textContent='Completá nombre, marca y una cantidad mayor a 0.';return}
-   const ex=P.find(p=>p.section===s&&polishKey(p)===polishKey({name,brand:b}));
+   const ex=P.find(p=>p.section===s&&polishKey(p)===polishKey({name,brand:b,type:t}));
    if(ex){$('#er').innerHTML=`Este esmalte (<b>${esc(name)}</b> · <b>${esc(b)}</b>) ya está cargado en el sistema, en ${SEC[s]} con <b>${ex.qty}</b> unidades. Para sumar stock usá el botón “+” de esa fila.`;return}
   ensureBrand(b);addStock({name,brand:b,type:t,qty:c,section:s,min:Math.max(0,parseInt($('#mn').value)||0)});dlg.close()});
  bindBrand();
@@ -476,7 +476,7 @@ function openEdit(p){
  <p class="er" id="er"></p><div class="row"><button class="btn o" id="no">Cancelar</button><button class="btn" id="ok">Guardar cambios</button></div>`,()=>{
   const name=$('#n').value.trim(),b=pickBrand().trim(),t=$('#t').value,c=parseInt($('#c').value);
   if(!name||!b||isNaN(c)||c<0){$('#er').textContent='Completá nombre y marca, y poné una cantidad válida (0 o más).';return}
-   const ex=P.find(x=>x.id!==p.id&&x.section===p.section&&polishKey(x)===polishKey({name,brand:b}));
+   const ex=P.find(x=>x.id!==p.id&&x.section===p.section&&polishKey(x)===polishKey({name,brand:b,type:t}));
   if(ex){$('#er').innerHTML=`Ya existe <b>${esc(ex.name)}</b> (${esc(ex.brand)} · ${esc(ex.type)}) en ${SEC[p.section]} con ${ex.qty} unidades.`;return}
   ensureBrand(b);const bt=writeBatch(db),upd={name,brand:b,type:t,min:Math.max(0,parseInt($('#mn').value)||0)};
   if(c!==p.qty){upd.qty=c;bt.set(doc(collection(db,'movements')),mv({...p,name,brand:b,type:t},c>p.qty?'in':'out',Math.abs(c-p.qty),Date.now(),{adj:true}))}
