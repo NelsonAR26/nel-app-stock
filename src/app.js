@@ -786,7 +786,7 @@ function claimRows(records){
 }
 function claimReportMessage(records){
  const sentDate=claimDateLabel(supplyToday());
- const cases=records.map((x,i)=>`*CASO ${i+1} — ${String(x.client||'').trim()}*\n• *Fecha del servicio:* ${claimDateLabel(x.serviceDate)}\n• *Fecha del reclamo:* ${claimDateLabel(x.claimDate)}\n• *Manicura responsable:* ${String(x.manicurist||'').trim()}\n• *Área del servicio:* ${String(x.area||'').trim()}\n• *Observación y respuesta brindada:*\n${String(x.observations||'').trim()||'Sin detalle cargado.'}`).join('\n\n');
+ const cases=records.map((x,i)=>`*CASO ${i+1} — ${String(x.client||'').trim()}*\n• *Fecha del servicio:* ${claimDateLabel(x.serviceDate)}\n• *Fecha del reclamo:* ${claimDateLabel(x.claimDate)}\n• *Manicura responsable:* ${String(x.manicurist||'').trim()}\n• *Área del servicio:* ${String(x.area||'').trim()}\n• *Observación y respuesta brindada:*\n${String(x.observations||'').trim()||'Sin detalle cargado.'}`).join('\n\n──────────────\n\n');
  return `⚠️ *REPORTE DE RECLAMOS | SANCIA*\n*Fecha de envío:* ${sentDate}\n*Cantidad de casos:* ${records.length}\n\n${cases}\n\n_Reporte emitido desde Nel App Stock._`;
 }
 function updateClaimShareControls(){
