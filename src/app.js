@@ -38,7 +38,7 @@ const isLow=p=>p.qty>=1&&minOf(p)>0&&p.qty<minOf(p);
 const needs=p=>p.qty<1||isLow(p);
 const st=p=>p.qty<1?['bad','Agotado']:(minOf(p)>0?p.qty<minOf(p):(p.section!=='uso'&&p.qty<=2))?['warn',minOf(p)>0?'Bajo mínimo':'Stock bajo']:['ok','Disponible'];
 
-let C={},P=[],M=[],claimRecords=[],claimPeriod='month',claimQuery='',claimHiddenNames=[],movementReady=false,tab='res',brand='Todas',type='Todos',q='',days=30,lim=20,stat='Todos',ing='Todos',srt='new',unsub=[];
+let C={},P=[],M=[],claimRecords=[],claimPeriod='month',claimQuery='',claimHiddenNames=[],claimSelected=new Set(),movementReady=false,tab='res',brand='Todas',type='Todos',q='',days=30,lim=20,stat='Todos',ing='Todos',srt='new',unsub=[];
 const claimHiddenStorageKey=uid=>`nel-stock-claim-rank-hidden-${uid}`;
 const readClaimHiddenNames=uid=>{try{return JSON.parse(localStorage.getItem(claimHiddenStorageKey(uid))||'[]')}catch{return[]}};
 const saveClaimHiddenNames=()=>{try{const uid=auth.currentUser?.uid;if(uid)localStorage.setItem(claimHiddenStorageKey(uid),JSON.stringify(claimHiddenNames))}catch{}};
@@ -107,14 +107,14 @@ function applySectionAccess(access){
  render();
 }
 function subscribeAuthorizedData(user,access){
- unsub.forEach(f=>f());unsub=[];D=[];claimRecords=[];M=[];P=[];C={};movementReady=false;supplyCatalogReady=false;supplyHistoryReady=false;supplyChecks=[];supplyAreas=[{id:'manos',name:'Manos',items:[]}];supplyDrafts={};supplyDirty={};orderGroups=freshOrderGroups();orderSelected=new Set();orderReady=false;orderContact={name:'',phone:''};
+ unsub.forEach(f=>f());unsub=[];D=[];claimRecords=[];claimSelected.clear();M=[];P=[];C={};movementReady=false;supplyCatalogReady=false;supplyHistoryReady=false;supplyChecks=[];supplyAreas=[{id:'manos',name:'Manos',items:[]}];supplyDrafts={};supplyDirty={};orderGroups=freshOrderGroups();orderSelected=new Set();orderReady=false;orderContact={name:'',phone:''};
  PU={name:'Gabriela Vicario',phone:''};
  const er=()=>toast('Sin permiso o sin conexión con la base de datos'),p=access.permissions||{},admin=access.admin,can=(m,a)=>admin||p?.[m]?.[a]===true;
  if(can('polishes','read'))unsub.push(onSnapshot(collection(db,'polishes'),s=>{P=s.docs.map(d=>{const data=d.data();return {id:d.id,...data,sourceBrand:data.brand,brand:canonPolishBrand(data.brand)}});render();},er));
  if(can('movements','read'))unsub.push(onSnapshot(collection(db,'movements'),s=>{M=s.docs.map(d=>({...d.data(),id:d.id}));movementReady=true;if(tab==='inf')render()},er));
  if(can('settings','read'))unsub.push(onSnapshot(doc(db,'settings','purchaser'),s=>{if(s.exists())PU={...PU,...s.data()}},er));
  if(can('deliveries','read'))unsub.push(onSnapshot(collection(db,'deliveries'),s=>{D=s.docs.map(d=>({id:d.id,...d.data()}));if(tab==='ent')render()},er));
- if(can('serviceClaims','read'))unsub.push(onSnapshot(collection(db,'serviceClaims'),s=>{claimRecords=s.docs.map(d=>({id:d.id,...d.data()}));if(tab==='reclamos')render()},er));
+ if(can('serviceClaims','read'))unsub.push(onSnapshot(collection(db,'serviceClaims'),s=>{claimRecords=s.docs.map(d=>({id:d.id,...d.data()}));const ids=new Set(claimRecords.map(x=>x.id));claimSelected.forEach(id=>{if(!ids.has(id))claimSelected.delete(id)});if(tab==='reclamos')render()},er));
  if(can('polishes','read')||can('settings','read'))unsub.push(onSnapshot(doc(db,'settings','catalog'),s=>{C=s.exists()?s.data():{};render()},er));
  if(can('supplyControls','read')){
   unsub.push(onSnapshot(doc(db,'settings','supplyCatalog'),s=>{const a=s.exists()?s.data().areas:null;supplyAreas=Array.isArray(a)&&a.length?a:[{id:'manos',name:'Manos',items:[]}];if(!supplyAreas.some(x=>x.id===supplyAreaId))supplyAreaId=supplyAreas[0].id;supplyCatalogReady=true;Object.keys(supplyDrafts).forEach(id=>{if(!supplyDirty[id])delete supplyDrafts[id]});if(tab==='insumos')render()},er));
@@ -128,7 +128,7 @@ function subscribeAuthorizedData(user,access){
 }
 let profileObserver=null;
 onAuthStateChanged(auth,async u=>{
- profileObserver?.();profileObserver=null;$('#login').hidden=!!u;$('#app').hidden=true;unsub.forEach(f=>f());unsub=[];window.__nelSectionAccess=null;if(!u){P=[];M=[];D=[];claimRecords=[];return}
+ profileObserver?.();profileObserver=null;$('#login').hidden=!!u;$('#app').hidden=true;unsub.forEach(f=>f());unsub=[];window.__nelSectionAccess=null;if(!u){P=[];M=[];D=[];claimRecords=[];claimSelected.clear();return}
  try{
   const owner=isNelsonOwner(u),profile=await getDoc(doc(db,'userAccess',u.uid)),data=profile.exists()?profile.data():{};claimHiddenNames=readClaimHiddenNames(u.uid);
   const access={active:owner||data.active===true,admin:owner,permissions:!owner&&data.active===true?(data.permissions||{}):{}};
@@ -773,13 +773,29 @@ function claimRate(n,total){return total?`${Math.round(n/total*100)}%`:'0%'}
 const claimDateLabel=s=>s?new Date(`${s}T12:00:00`).toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'}):'—';
 function claimsForPeriod(){
  const today=supplyToday(),dow=new Date(`${today}T12:00:00`).getDay(),mondayOffset=(dow+6)%7;
- const start=claimPeriod==='week'?dshift(-mondayOffset):claimPeriod==='month'?`${today.slice(0,7)}-01`:'';
- const end=claimPeriod==='week'?dshift(6-mondayOffset):today;
+ const start=claimPeriod==='day'?today:claimPeriod==='week'?dshift(-mondayOffset):claimPeriod==='month'?`${today.slice(0,7)}-01`:'';
+ const end=claimPeriod==='day'?today:claimPeriod==='week'?dshift(6-mondayOffset):today;
  return claimRecords.filter(x=>(!start||x.claimDate>=start)&&x.claimDate<=end);
 }
+function claimVisibleRecords(records){
+ return records.filter(x=>norm([x.client,x.manicurist,x.area,x.observations].join(' ')).includes(norm(claimQuery))).sort((a,b)=>String(b.claimDate||'').localeCompare(String(a.claimDate||''))||(Number(b.createdAt)||0)-(Number(a.createdAt)||0));
+}
 function claimRows(records){
- const f=records.filter(x=>norm([x.client,x.manicurist,x.area,x.observations].join(' ')).includes(norm(claimQuery))).sort((a,b)=>String(b.claimDate||'').localeCompare(String(a.claimDate||''))||(Number(b.createdAt)||0)-(Number(a.createdAt)||0));
- return f.map(x=>`<div class="mv"><span><b>${esc(x.client)}</b><small>Servicio ${claimDateLabel(x.serviceDate)} · Reclamo ${claimDateLabel(x.claimDate)}</small></span><span class="pill">${esc(x.area)}</span><span class="pill">${esc(x.manicurist)}</span><span class="sub">${esc(x.observations)}</span><span class="use-actions"><button class="ib" data-a="claimEdit" data-id="${esc(x.id)}" title="Editar reclamo" aria-label="Editar reclamo">${ico('edit')}</button><button class="ib d" data-a="claimDelete" data-id="${esc(x.id)}" title="Eliminar reclamo" aria-label="Eliminar reclamo">${ico('del')}</button></span></div>`).join('')||'<p class="empty">No hay reclamos en este período o filtro.</p>';
+ const f=claimVisibleRecords(records);
+ return f.map(x=>`<div class="mv claim-row"><label class="claim-select" title="Incluir en el reporte de WhatsApp"><input type="checkbox" data-claim-select="${esc(x.id)}" aria-label="Incluir reclamo de ${esc(x.client)} en el reporte" ${claimSelected.has(x.id)?'checked':''}></label><span><b>${esc(x.client)}</b><small>Servicio ${claimDateLabel(x.serviceDate)} · Reclamo ${claimDateLabel(x.claimDate)}</small></span><span class="pill">${esc(x.area)}</span><span class="pill">${esc(x.manicurist)}</span><span class="sub">${esc(x.observations)}</span><span class="use-actions"><button class="ib" data-a="claimEdit" data-id="${esc(x.id)}" title="Editar reclamo" aria-label="Editar reclamo">${ico('edit')}</button><button class="ib d" data-a="claimDelete" data-id="${esc(x.id)}" title="Eliminar reclamo" aria-label="Eliminar reclamo">${ico('del')}</button></span></div>`).join('')||'<p class="empty">No hay reclamos en este período o filtro.</p>';
+}
+function claimReportMessage(records){
+ const sentDate=claimDateLabel(supplyToday());
+ const cases=records.map((x,i)=>`*RECLAMO ${i+1} · ${String(x.client||'').trim()}*\n• *Servicio realizado:* ${claimDateLabel(x.serviceDate)}\n• *Fecha del reporte:* ${claimDateLabel(x.claimDate)}\n• *Manicura:* ${String(x.manicurist||'').trim()}\n• *Servicio:* ${String(x.area||'').trim()}\n• *Observación y respuesta brindada:*\n${String(x.observations||'').trim()||'Sin detalle cargado.'}`).join('\n\n');
+ return `📋 *REPORTE DIARIO DE RECLAMOS*\n*Fecha de envío:* ${sentDate}\n*Casos incluidos:* ${records.length}\n\n${cases}\n\n_Reporte generado desde Nel App Stock · Sancia_`;
+}
+function updateClaimShareControls(){
+ const selectedCount=claimRecords.filter(x=>claimSelected.has(x.id)).length,visibleCount=claimVisibleRecords(claimsForPeriod()).length;
+ const select=$('#main [data-a="claimSelectVisible"]'),clear=$('#main [data-a="claimClearSelection"]'),send=$('#main [data-a="claimWhatsApp"]'),status=$('#claimSelectionStatus');
+ if(select){select.textContent=`Seleccionar visibles (${visibleCount})`;select.disabled=!visibleCount}
+ if(clear)clear.disabled=!selectedCount;
+ if(send){send.textContent=`Preparar WhatsApp (${selectedCount})`;send.disabled=!selectedCount}
+ if(status)status.textContent=selectedCount?`${selectedCount} reclamo${selectedCount===1?' seleccionado':'s seleccionados'} para el reporte.`:'Todavía no seleccionaste reclamos.';
 }
 function claimsView(){
  const period=claimsForPeriod(),total=period.length,hand=period.filter(x=>x.area==='Manos').length,foot=period.filter(x=>x.area==='Pies').length,by={};
@@ -787,21 +803,22 @@ function claimsView(){
  period.forEach(x=>{const name=x.manicurist||'Sin manicura',k=norm(name),g=by[k]??={name,total:0,h:0,f:0};g.total++;if(x.area==='Manos')g.h++;if(x.area==='Pies')g.f++});
  const hiddenKeys=new Set(claimHiddenNames.map(norm));
  const rank=Object.values(by).filter(x=>!hiddenKeys.has(norm(x.name))).sort((a,b)=>b.total-a.total||a.name.localeCompare(b.name,'es',{sensitivity:'base'}));
- const periodLabel={week:'esta semana',month:'este mes',all:'todo el período'}[claimPeriod];
+ const periodLabel={day:'hoy',week:'esta semana',month:'este mes',all:'todo el período'}[claimPeriod];
  const max=rank[0]?.total||1,min=rank.length?rank[rank.length-1].total:0;
  const circumference=264;
  const chart=rank.length?`<div class="claim-rank-grid">${rank.map((x,i)=>{const tone=max>min?(x.total===max?'high':x.total===min?'low':'mid'):'mid',position=rank.findIndex(y=>y.total===x.total)+1,share=total?x.total/total:0,handsShare=x.total?x.h/x.total:0,feetShare=x.total?x.f/x.total:0,handsArc=circumference*handsShare,feetArc=circumference*feetShare;return `<article class="claim-person-card ${tone==='high'?'high':tone==='low'?'low':''}"><div class="claim-person-head"><span class="claim-place">${position}°</span><div><div class="claim-person-name">${esc(x.name)}</div><span class="claim-person-tag">${tone==='high'?'Más reclamos · rojo':tone==='low'?'Menos reclamos · verde':`Puesto ${position}`}</span></div><button class="claim-hide" data-a="claimHide" data-name="${esc(x.name)}" title="Ocultar esta manicura del ranking" aria-label="Ocultar ${esc(x.name)} del ranking">×</button></div><div class="claim-donuts"><div class="claim-donut-box"><svg class="claim-donut" viewBox="0 0 120 120" role="img" aria-label="${esc(x.name)}: ${x.total} reclamos, ${claimRate(x.total,total)} del total"><circle class="claim-donut-track" cx="60" cy="60" r="42"/><circle class="claim-donut-value ${tone}" cx="60" cy="60" r="42" stroke-dasharray="${(circumference*share).toFixed(2)} ${circumference}"/><text class="claim-donut-count" x="60" y="57">${x.total}</text><text class="claim-donut-caption" x="60" y="75">reclamos</text></svg><div class="claim-donut-label">${claimRate(x.total,total)} del total</div><div class="claim-donut-note">Volumen comparativo</div></div><div class="claim-donut-box"><svg class="claim-donut" viewBox="0 0 120 120" role="img" aria-label="${esc(x.name)}: Manos ${x.h}, Pies ${x.f}"><circle class="claim-donut-track" cx="60" cy="60" r="42"/><circle class="claim-donut-value hands" cx="60" cy="60" r="42" stroke-dasharray="${handsArc.toFixed(2)} ${circumference}"/><circle class="claim-donut-value feet" cx="60" cy="60" r="42" stroke-dasharray="${feetArc.toFixed(2)} ${circumference}" stroke-dashoffset="-${handsArc.toFixed(2)}"/><text class="claim-donut-count" x="60" y="57">${x.total}</text><text class="claim-donut-caption" x="60" y="75">Manos / Pies</text></svg><div class="claim-donut-label">Tipos de servicio</div><div class="claim-donut-note">Distribución personal</div></div></div><div class="claim-person-meta"><div class="claim-meta-item"><b><i class="claim-dot" style="background:#8b6bea"></i> ${x.h} · ${claimRate(x.h,x.total)}</b>Reclamos de Manos</div><div class="claim-meta-item"><b><i class="claim-dot" style="background:#38a9a1"></i> ${x.f} · ${claimRate(x.f,x.total)}</b>Reclamos de Pies</div></div></article>`}).join('')}</div>${total===0?'<p class="claim-empty-note">Todavía no hay reclamos en este período.</p>':''}`:'<p class="empty">No hay manicuras visibles en este ranking.</p>';
  const hidden=claimHiddenNames.length?`<details class="claim-hidden-panel"><summary>Manicuras ocultas (${claimHiddenNames.length})</summary><div class="claim-hidden-list">${claimHiddenNames.map(name=>`<span class="claim-hidden-item">${esc(name)}<button class="claim-restore" data-a="claimRestore" data-name="${esc(name)}">Mostrar</button></span>`).join('')}</div></details>`:'';
+ const selectedCount=claimRecords.filter(x=>claimSelected.has(x.id)).length,visibleCount=claimVisibleRecords(period).length;
  const report=`<section class="glass card claim-report"><h3>Ranking de reclamos · ${periodLabel}</h3><p class="sub claim-report-intro">Solo aparecen manicuras con reclamos cargados. Cada tarjeta muestra su puesto, proporción del total y detalle circular entre Manos y Pies.</p>${chart}${hidden}</section>`;
  return `<div class="head hd"><div><h2>Reclamos</h2><p>Seguimiento por manicura y tipo de servicio.</p></div><div class="xb"><button class="btn" data-a="claimNew">+ Nuevo reclamo</button></div></div>
- <div class="tools">${[['week','Esta semana'],['month','Este mes'],['all','Todo']].map(([v,l])=>`<button class="chip ${claimPeriod===v?'on':''}" data-a="claimPeriod" data-v="${v}">${l}</button>`).join('')}</div>
+ <div class="tools">${[['day','Hoy'],['week','Esta semana'],['month','Este mes'],['all','Todo']].map(([v,l])=>`<button class="chip ${claimPeriod===v?'on':''}" data-a="claimPeriod" data-v="${v}">${l}</button>`).join('')}</div>
  <div class="cards"><div class="glass card"><h3>Reclamos · ${periodLabel}</h3><p><b>${total}</b> total</p></div><div class="glass card"><h3>Manos</h3><p><b>${hand}</b> · ${claimRate(hand,total)} del total</p></div><div class="glass card"><h3>Pies</h3><p><b>${foot}</b> · ${claimRate(foot,total)} del total</p></div></div>
- ${report}<div class="tools"><input id="claimSearch" type="search" placeholder="Buscar clienta, manicura u observación…" value="${esc(claimQuery)}"></div><div class="glass card"><h3>Detalle de reclamos · ${periodLabel}</h3><div id="claimList">${claimRows(period)}</div></div>`;
+ ${report}<div class="glass card claim-share"><h3>Enviar reporte por WhatsApp</h3><p class="sub">Marcá uno o varios reclamos del listado. El mensaje incluirá clienta, fechas, manicura, tipo de servicio y la observación con la respuesta brindada.</p><div class="claim-share-actions"><button class="btn o" data-a="claimSelectVisible" ${visibleCount?'':'disabled'}>Seleccionar visibles (${visibleCount})</button><button class="btn o" data-a="claimClearSelection" ${selectedCount?'':'disabled'}>Limpiar selección</button><button class="btn wa" data-a="claimWhatsApp" ${selectedCount?'':'disabled'}>Preparar WhatsApp (${selectedCount})</button></div><p class="sub claim-selection-status" id="claimSelectionStatus" aria-live="polite">${selectedCount?`${selectedCount} reclamo${selectedCount===1?' seleccionado':'s seleccionados'} para el reporte.`:'Todavía no seleccionaste reclamos.'}</p></div><div class="tools"><input id="claimSearch" type="search" placeholder="Buscar clienta, manicura u observación…" value="${esc(claimQuery)}"></div><div class="glass card"><h3>Detalle de reclamos · ${periodLabel}</h3><div id="claimList">${claimRows(period)}</div></div>`;
 }
 function openClaim(x){
  const editing=!!x,v=x||{client:'',manicurist:'',serviceDate:supplyToday(),claimDate:supplyToday(),area:'Manos',observations:''};
  const names=[...new Set([...claimRecords.map(r=>r.manicurist),...dpeople()].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'}));
- show(`<h2>${editing?'Editar reclamo':'Nuevo reclamo'}</h2><label>Nombre y apellido de la clienta<input id="claimClient" value="${esc(v.client)}" placeholder="Nombre y apellido"></label><label>Manicura que la atendió<input id="claimManicurist" list="claimManicurists" value="${esc(v.manicurist)}" placeholder="Nombre de la manicura"><datalist id="claimManicurists">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist></label><label>Tipo de servicio<select id="claimArea"><option ${v.area==='Manos'?'selected':''}>Manos</option><option ${v.area==='Pies'?'selected':''}>Pies</option></select></label><label>Fecha del servicio<input id="claimServiceDate" type="date" value="${esc(v.serviceDate)}"></label><label>Fecha del reclamo<input id="claimDate" type="date" value="${esc(v.claimDate)}"></label><label>Observaciones<textarea id="claimObservations" rows="4" placeholder="Describí cuál fue el inconveniente">${esc(v.observations)}</textarea></label><p class="er" id="er"></p><div class="row"><button class="btn o" id="no">Cancelar</button><button class="btn" id="ok">Guardar reclamo</button></div>`,()=>{
+ show(`<h2>${editing?'Editar reclamo':'Nuevo reclamo'}</h2><label>Nombre y apellido de la clienta<input id="claimClient" value="${esc(v.client)}" placeholder="Nombre y apellido"></label><label>Manicura que la atendió<input id="claimManicurist" list="claimManicurists" value="${esc(v.manicurist)}" placeholder="Nombre de la manicura"><datalist id="claimManicurists">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist></label><label>Tipo de servicio<select id="claimArea"><option ${v.area==='Manos'?'selected':''}>Manos</option><option ${v.area==='Pies'?'selected':''}>Pies</option></select></label><label>Fecha del servicio<input id="claimServiceDate" type="date" value="${esc(v.serviceDate)}"></label><label>Fecha del reclamo<input id="claimDate" type="date" value="${esc(v.claimDate)}"></label><label>Observación y respuesta brindada<textarea id="claimObservations" rows="4" placeholder="Contá qué ocurrió y qué se le respondió a la clienta. Podés incluir ambas cosas en el mismo texto.">${esc(v.observations)}</textarea></label><p class="er" id="er"></p><div class="row"><button class="btn o" id="no">Cancelar</button><button class="btn" id="ok">Guardar reclamo</button></div>`,()=>{
   const rec={client:$('#claimClient').value.trim(),manicurist:$('#claimManicurist').value.trim(),area:$('#claimArea').value,serviceDate:$('#claimServiceDate').value,claimDate:$('#claimDate').value,observations:$('#claimObservations').value.trim()};
   if(Object.values(rec).some(v=>!v)){$('#er').textContent='Completá todos los campos para guardar el reclamo.';return}
   const b=writeBatch(db);if(editing)b.update(doc(db,'serviceClaims',x.id),rec);else b.set(doc(collection(db,'serviceClaims')),{...rec,createdAt:Date.now()});
@@ -985,6 +1002,15 @@ $('#main').onclick=e=>{
   if(t.dataset.a==='claimRestore')claimHiddenNames=claimHiddenNames.filter(x=>norm(x)!==key);
   saveClaimHiddenNames();render();return
  }
+ if(t.dataset.a==='claimSelectVisible'){claimVisibleRecords(claimsForPeriod()).forEach(x=>claimSelected.add(x.id));render();return}
+ if(t.dataset.a==='claimClearSelection'){claimSelected.clear();render();return}
+ if(t.dataset.a==='claimWhatsApp'){
+  const selected=claimRecords.filter(x=>claimSelected.has(x.id)).sort((a,b)=>String(a.claimDate||'').localeCompare(String(b.claimDate||''))||(Number(a.createdAt)||0)-(Number(b.createdAt)||0));
+  if(!selected.length){toast('Seleccioná al menos un reclamo');return}
+  const url=`https://wa.me/?text=${encodeURIComponent(claimReportMessage(selected))}`;
+  if(url.length>7500){toast('El reporte es muy largo. Seleccioná menos reclamos para abrirlo en WhatsApp.');return}
+  window.open(url,'_blank','noopener');toast(`Reporte preparado con ${selected.length} reclamo${selected.length===1?'':'s'}`);return
+ }
  if(t.dataset.a==='claimNew'){openClaim();return}
  if(t.dataset.a==='claimEdit'){const x=claimRecords.find(r=>r.id===t.dataset.id);if(x)openClaim(x);return}
  if(t.dataset.a==='claimDelete'){const x=claimRecords.find(r=>r.id===t.dataset.id);if(x&&confirm(`¿Eliminar el reclamo de ${x.client}?`))deleteDoc(doc(db,'serviceClaims',x.id)).then(()=>toast('Reclamo eliminado')).catch(fail);return}
@@ -1032,7 +1058,7 @@ $('#main').oninput=e=>{
   const status=$('#voucherAutoMessage');if(status)status.textContent=voucherAutoMessage;drawVoucherCanvas();return
  }
  if(['voucherNumber','voucherTo','voucherFrom','voucherValue'].includes(e.target.id)){voucherDraft[e.target.id==='voucherNumber'?'number':e.target.id==='voucherTo'?'to':e.target.id==='voucherFrom'?'from':'value']=e.target.value;drawVoucherCanvas();return}
- if(e.target.id==='claimSearch'){claimQuery=e.target.value;$('#claimList').innerHTML=claimRows(claimsForPeriod());return}
+ if(e.target.id==='claimSearch'){claimQuery=e.target.value;$('#claimList').innerHTML=claimRows(claimsForPeriod());updateClaimShareControls();return}
  if(e.target.id==='dq'){dl.q=e.target.value;dl.lim=60;$('#dbody').innerHTML=dBody();return}
  if(e.target.id==='q'){q=e.target.value;lim=20;list();return}
   if(e.target.id==='orderContactName'||e.target.id==='orderContactPhone'){orderContact={...orderContact,name:$('#orderContactName')?.value.trim()||'',phone:($('#orderContactPhone')?.value||'').replace(/\D/g,'')};refreshOrderPreview();return}
@@ -1040,6 +1066,7 @@ $('#main').oninput=e=>{
  if(e.target.hasAttribute('data-supply-qty')){const a=currentSupplyArea(),d=supplyDraftFor(a);d.items[e.target.dataset.supplyQty].qty=e.target.value;supplyDirty[a.id]=true}
 };
 $('#main').onchange=e=>{
+ if(e.target.matches('[data-claim-select]')){const id=e.target.dataset.claimSelect;if(e.target.checked)claimSelected.add(id);else claimSelected.delete(id);updateClaimShareControls();return}
  if(['dsec','dper','dfrom','dto'].includes(e.target.id)){const k={dsec:'sec',dper:'per',dfrom:'from',dto:'to'}[e.target.id];dl[k]=e.target.value;if(k==='from'||k==='to')dl.rng='';dl.lim=60;render();return}
  if(e.target.id==='supplyArea'){supplyAreaId=e.target.value;render();return}
   if(e.target.hasAttribute('data-order-check')){const id=e.target.dataset.orderCheck;if(e.target.checked)orderSelected.add(id);else orderSelected.delete(id);refreshOrderPreview();saveOrderState().catch(fail);return}
