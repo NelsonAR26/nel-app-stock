@@ -214,7 +214,7 @@ async function drawVoucherCanvas(){
  voucherFontsPromise??=Promise.all([document.fonts.load('400 62px Poppins'),document.fonts.load('400 40px Questrial')]);
  try{await voucherFontsPromise}catch{}
  const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(voucherTemplateImage,0,0,canvas.width,canvas.height);ctx.fillStyle='#73594b';ctx.textBaseline='alphabetic';ctx.textAlign='left';
- const fitTo=voucherFitText(ctx,voucherRecipient() ,520,500,1125,62,30),fitFrom=voucherFitText(ctx,voucherDraft.from.trim(),460,590,1125,62,30),fitValue=voucherFitText(ctx,voucherDraft.value.trim(),550,660,1125,62,22),fitOk=fitTo&&fitFrom&&fitValue;
+ const fitTo=voucherFitText(ctx,voucherRecipient() ,520,500,1125,62,30),fitFrom=voucherFitText(ctx,voucherDraft.from.trim(),460,590,1125,62,30),fitValue=voucherFitText(ctx,voucherDraft.value.trim(),560,672,1125,62,22),fitOk=fitTo&&fitFrom&&fitValue;
  voucherFitText(ctx,voucherExpiry(voucherDraft.date),580,863,540,62,36);
  ctx.fillStyle='#ffffff';voucherFitText(ctx,voucherDraft.number.trim(),1560,100,140,40,22,'Questrial');
  if(!fitOk){const error=$('#voucherError');if(error)error.textContent='Algún texto es demasiado largo para la plantilla. Acortalo para que se vea completo.';return false}return true;
