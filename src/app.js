@@ -784,10 +784,10 @@ function claimRows(records){
  const f=claimVisibleRecords(records);
  return f.map(x=>`<div class="mv claim-row"><label class="claim-select" title="Incluir en el reporte de WhatsApp"><input type="checkbox" data-claim-select="${esc(x.id)}" aria-label="Incluir reclamo de ${esc(x.client)} en el reporte" ${claimSelected.has(x.id)?'checked':''}></label><span><b>${esc(x.client)}</b><small>Servicio ${claimDateLabel(x.serviceDate)} · Reclamo ${claimDateLabel(x.claimDate)}</small></span><span class="pill">${esc(x.area)}</span><span class="pill">${esc(x.manicurist)}</span><span class="sub">${esc(x.observations)}</span><span class="use-actions"><button class="ib" data-a="claimEdit" data-id="${esc(x.id)}" title="Editar reclamo" aria-label="Editar reclamo">${ico('edit')}</button><button class="ib d" data-a="claimDelete" data-id="${esc(x.id)}" title="Eliminar reclamo" aria-label="Eliminar reclamo">${ico('del')}</button></span></div>`).join('')||'<p class="empty">No hay reclamos en este período o filtro.</p>';
 }
-⚠️ REPORTE DE RECLAMOS | SANCIA(records){
+function claimReportMessage(records){
  const sentDate=claimDateLabel(supplyToday());
- const cases=records.map((x,i)=>`*RECLAMO ${i+1} · ${String(x.client||'').trim()}*\n• *Servicio realizado:* ${claimDateLabel(x.serviceDate)}\n• *Fecha del reporte:* ${claimDateLabel(x.claimDate)}\n• *Manicura:* ${String(x.manicurist||'').trim()}\n• *Servicio:* ${String(x.area||'').trim()}\n• *Observación y respuesta brindada:*\n${String(x.observations||'').trim()||'Sin detalle cargado.'}`).join('\n\n');
- return `📋 *⚠️ REPORTE DE RECLAMOS | SANCIA*\n*Fecha de envío:* ${sentDate}\n*Casos incluidos:* ${records.length}\n\n${cases}\n\n_Reporte generado desde Nel App Stock · Sancia_`;
+ const cases=records.map((x,i)=>`*CASO ${i+1} — ${String(x.client||'').trim()}*\n• *Fecha del servicio:* ${claimDateLabel(x.serviceDate)}\n• *Fecha del reclamo:* ${claimDateLabel(x.claimDate)}\n• *Manicura responsable:* ${String(x.manicurist||'').trim()}\n• *Área del servicio:* ${String(x.area||'').trim()}\n• *Observación y respuesta brindada:*\n${String(x.observations||'').trim()||'Sin detalle cargado.'}`).join('\n\n');
+ return `⚠️ *REPORTE DE RECLAMOS | SANCIA*\n*Fecha de envío:* ${sentDate}\n*Cantidad de casos:* ${records.length}\n\n${cases}\n\n_Reporte emitido desde Nel App Stock._`;
 }
 function updateClaimShareControls(){
  const selectedCount=claimRecords.filter(x=>claimSelected.has(x.id)).length,visibleCount=claimVisibleRecords(claimsForPeriod()).length;
