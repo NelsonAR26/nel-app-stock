@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nel-stock-v48';
+const CACHE_NAME = 'nel-stock-v49';
 const APP_SHELL = [
   './',
   'index.html',
