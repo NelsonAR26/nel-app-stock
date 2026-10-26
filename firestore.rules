@@ -13,6 +13,7 @@
 // supplyControls/{id}: areaId, areaName, date, reviewer, note, items, createdAt.
 // settings/catalog: optional types, brands, logos.
 // settings/purchaser: name, phone.
+// settings/paymentStaff: names, updatedAt.
 // settings/supplyCatalog: areas, updatedAt.
 // settings/supplyOrders: groups, selectedIds, updatedAt.
 // settings/supplyOrderContact: name, phone.
