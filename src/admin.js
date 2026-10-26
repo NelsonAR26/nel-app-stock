@@ -10,7 +10,7 @@ const OWNER_UID='m4NQqQ4cMlMcUy6C1ItwAH6un5G3';
 const isNelsonOwner=user=>user?.uid===OWNER_UID;
 const provisionApp=initializeApp(firebaseConfig,'nel-app-stock-user-provisioner');
 const provisionAuth=initializeAuth(provisionApp,{persistence:inMemoryPersistence});
-const modules=[['polishes','Stock · Reposición, En uso y Alertas'],['movements','Informe'],['serviceClaims','Reclamos'],['deliveries','Entregas'],['supplyControls','Ronda de insumos'],['supplyOrders','Pedidos de insumos'],['vouchers','Voucher digital'],['settings','Catálogo / Configuración']];
+const modules=[['polishes','Stock · Reposición, En uso y Alertas'],['movements','Informe'],['serviceClaims','Reclamos'],['deliveries','Entregas'],['supplyControls','Ronda de insumos'],['supplyOrders','Pedidos de insumos'],['vouchers','Voucher digital'],['settings','Catálogo / Configuración'],['laser','Láser'],['payments','Pagos']];
 const actions=[['read','Leer'],['create','Crear'],['edit','Editar'],['delete','Eliminar']];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let currentUser=null,accountList=[];
