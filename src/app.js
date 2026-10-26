@@ -3,7 +3,7 @@ const firebaseConfig={apiKey:"AIzaSyA_mffH6yFailmdEM1Y-hqAe0jK5fmVdVc",authDomai
 /* ======================================= */
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,signOut} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import {initializeFirestore,memoryLocalCache,collection,doc,onSnapshot,writeBatch,increment,getDocsFromServer,runTransaction,deleteDoc,getDoc} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import {initializeFirestore,memoryLocalCache,collection,doc,onSnapshot,writeBatch,increment,getDocsFromServer,runTransaction,deleteDoc,getDoc,updateDoc,addDoc} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const app=initializeApp(firebaseConfig),auth=getAuth(app);
 const db=initializeFirestore(app,{localCache:memoryLocalCache()});
@@ -38,7 +38,7 @@ const isLow=p=>p.qty>=1&&minOf(p)>0&&p.qty<minOf(p);
 const needs=p=>p.qty<1||isLow(p);
 const st=p=>p.qty<1?['bad','Agotado']:(minOf(p)>0?p.qty<minOf(p):(p.section!=='uso'&&p.qty<=2))?['warn',minOf(p)>0?'Bajo mínimo':'Stock bajo']:['ok','Disponible'];
 
-let C={},P=[],M=[],claimRecords=[],claimPeriod='month',claimQuery='',claimHiddenNames=[],claimSelected=new Set(),movementReady=false,tab='res',brand='Todas',type='Todos',q='',days=30,lim=20,stat='Todos',ing='Todos',srt='new',unsub=[];
+let C={},P=[],M=[],claimRecords=[],laserBookings=[],payments=[],laserDate=(()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)})(),paymentDate='',gestionPanel='inf',claimPeriod='month',claimQuery='',claimHiddenNames=[],claimSelected=new Set(),movementReady=false,tab='res',brand='Todas',type='Todos',q='',days=30,lim=20,stat='Todos',ing='Todos',srt='new',unsub=[];
 const claimHiddenStorageKey=uid=>`nel-stock-claim-rank-hidden-${uid}`;
 const readClaimHiddenNames=uid=>{try{return JSON.parse(localStorage.getItem(claimHiddenStorageKey(uid))||'[]')}catch{return[]}};
 const saveClaimHiddenNames=()=>{try{const uid=auth.currentUser?.uid;if(uid)localStorage.setItem(claimHiddenStorageKey(uid),JSON.stringify(claimHiddenNames))}catch{}};
@@ -68,11 +68,16 @@ const claimsTabButton=document.createElement('button');
 claimsTabButton.dataset.t='reclamos';claimsTabButton.title='Reclamos';
 claimsTabButton.innerHTML='<svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 3.5 7v5c0 5 3.5 8 8.5 9 5-1 8.5-4 8.5-9V7L12 3Z"/><path d="M12 8v5m0 3h.01"/></svg><span class="tl">Reclamos</span>';
 $('#tabs').insertBefore(claimsTabButton,$('#tabs [data-t="ent"]'));
+ const gestionButton=$('#tabs [data-t="inf"]');gestionButton.dataset.t='gestion';gestionButton.title='Informes y Catálogo';gestionButton.querySelector('.tl').textContent='Gestión';
+ $('#tabs [data-t="cat"]')?.remove();
+ const laserButton=document.createElement('button');laserButton.dataset.t='laser';laserButton.title='Láser';laserButton.innerHTML='<svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h7m5 0h4M11 7l5 5-5 5M4 7v10"/></svg><span class="tl">Láser</span>';
+ const paymentsButton=document.createElement('button');paymentsButton.dataset.t='pagos';paymentsButton.title='Pagos';paymentsButton.innerHTML='<svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg><span class="tl">Pagos</span>';
+ $('#tabs').append(laserButton,paymentsButton);
 $('#inst')?.remove();
-const tabPermission={rep:['polishes','read'],uso:['polishes','read'],alr:['polishes','read'],inf:['movements','read'],cat:['settings','read'],insumos:['supplyControls','read'],pedidos:['supplyOrders','read'],reclamos:['serviceClaims','read'],ent:['deliveries','read'],voucher:['vouchers','read']};
+ const tabPermission={rep:['polishes','read'],uso:['polishes','read'],alr:['polishes','read'],inf:['movements','read'],cat:['settings','read'],gestion:['movements','read'],laser:['laser','read'],pagos:['payments','read'],insumos:['supplyControls','read'],pedidos:['supplyOrders','read'],reclamos:['serviceClaims','read'],ent:['deliveries','read'],voucher:['vouchers','read']};
  const OWNER_UID='m4NQqQ4cMlMcUy6C1ItwAH6un5G3';
  const isNelsonOwner=user=>user?.uid===OWNER_UID;
-function canOpenTab(t,access=window.__nelSectionAccess){if(!access)return false;if(access.admin)return true;const p=tabPermission[t];return !!p&&access.permissions?.[p[0]]?.[p[1]]===true}
+ function canOpenTab(t,access=window.__nelSectionAccess){if(!access)return false;if(access.admin)return true;if(t==='gestion')return access.permissions?.movements?.read===true||access.permissions?.settings?.read===true;const p=tabPermission[t];return !!p&&access.permissions?.[p[0]]?.[p[1]]===true}
 const actionPermissions={
  rep:{edit:'edit',plus:'edit',out:'edit',putToUse:'edit',replenish:'edit',del:'delete',ximp:'create',undoUseImport:'edit',minset:'edit'},
  uso:{edit:'edit',plus:'edit',out:'edit',putToUse:'edit',replenish:'edit',del:'delete',ximp:'create',undoUseImport:'edit',minset:'edit'},
@@ -82,14 +87,17 @@ const actionPermissions={
  ent:{dnew:'create',dimp:'create',dedit:'edit',ddel:'delete'},
  insumos:{newSupplyArea:'create',editSupplyList:'edit',saveSupplyControl:'create',supplyPresence:'create'},
  pedidos:{orderAdd:'edit',orderRemove:'edit',orderContactSave:'edit',orderSelect:'edit'},
+ laser:{laserSave:'edit'},pagos:{paymentNew:'create',paymentEdit:'edit',paymentDelete:'delete'},
 };
-function canDoAction(section,action,access=window.__nelSectionAccess){if(!access)return false;if(access.admin)return true;const required=actionPermissions[section]?.[action];return !required||access.permissions?.[tabPermission[section]?.[0]]?.[required]===true}
+ function canDoAction(section,action,access=window.__nelSectionAccess){if(!access)return false;if(access.admin)return true;const actual=section==='gestion'?gestionPanel:section,required=actionPermissions[actual]?.[action];return !required||access.permissions?.[tabPermission[actual]?.[0]]?.[required]===true}
 function applyActionPermissions(){
- const section=tab==='rep'||tab==='uso'||tab==='alr'?'polishes':tab==='cat'?'settings':tab==='reclamos'?'serviceClaims':tab==='ent'?'deliveries':tab==='insumos'?'supplyControls':tab==='pedidos'?'supplyOrders':tab==='voucher'?'vouchers':tab==='inf'?'movements':'polishes';
+  const actual=tab==='gestion'?gestionPanel:tab,section=actual==='rep'||actual==='uso'||actual==='alr'?'polishes':actual==='cat'?'settings':actual==='reclamos'?'serviceClaims':actual==='ent'?'deliveries':actual==='insumos'?'supplyControls':actual==='pedidos'?'supplyOrders':actual==='voucher'?'vouchers':actual==='inf'?'movements':actual==='laser'?'laser':actual==='pagos'?'payments':'polishes';
  $('#add').hidden=(tab!=='rep'&&tab!=='uso')||!(window.__nelSectionAccess?.admin||window.__nelSectionAccess?.permissions?.polishes?.create===true);
  $('#xf').disabled=!(window.__nelSectionAccess?.admin||window.__nelSectionAccess?.permissions?.[section]?.create===true);
- $('#main').querySelectorAll('[data-a]').forEach(el=>{const a=el.dataset.a;if(actionPermissions[tab]?.[a])el.hidden=!canDoAction(tab,a)});
+  $('#main').querySelectorAll('[data-a]').forEach(el=>{const a=el.dataset.a,section=tab==='gestion'?gestionPanel:tab;if(actionPermissions[section]?.[a])el.hidden=!canDoAction(tab,a)});
  $('#main').querySelectorAll('[data-order-check]').forEach(el=>{el.disabled=!canDoAction('pedidos','orderSelect')});
+  $('#main').querySelectorAll('[data-laser]').forEach(el=>{el.disabled=!(canDoAction('laser','laserEdit')||canDoAction('laser','laserCreate'))});
+  $('#main').querySelectorAll('[data-a="laserSave"]').forEach(el=>{el.hidden=!(canDoAction('laser','laserEdit')||canDoAction('laser','laserCreate'))});
  if(tab==='voucher'){
   const allowed=window.__nelVoucherCanCreate!==false;
   ['voucherAutoText','voucherNumber','voucherTo','voucherFrom','voucherValue'].forEach(id=>{const el=$('#'+id);if(el)el.disabled=!allowed});
@@ -98,6 +106,7 @@ function applyActionPermissions(){
 }
 function applySectionAccess(access){
  window.__nelSectionAccess=access;
+  if(!canOpenTab(gestionPanel,access))gestionPanel=access.admin||access.permissions?.movements?.read?'inf':'cat';
  const nav=$('#tabs');let voucher=nav.querySelector('[data-t="voucher"]');
  if(access.admin||access.permissions?.vouchers?.read){
   if(!voucher){voucher=document.createElement('button');voucher.dataset.t='voucher';voucher.title='Voucher digital';voucher.innerHTML='<svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12v8H4v-8M2 7h20v5H2zM12 7v13M12 7H8.5a2.5 2.5 0 1 1 2.35-3.35L12 7Zm0 0h3.5a2.5 2.5 0 1 0-2.35-3.35L12 7Z"/></svg><span class="tl">Voucher</span>';nav.append(voucher)}
@@ -107,11 +116,13 @@ function applySectionAccess(access){
  render();
 }
 function subscribeAuthorizedData(user,access){
- unsub.forEach(f=>f());unsub=[];D=[];claimRecords=[];claimSelected.clear();M=[];P=[];C={};movementReady=false;supplyCatalogReady=false;supplyHistoryReady=false;supplyChecks=[];supplyAreas=[{id:'manos',name:'Manos',items:[]}];supplyDrafts={};supplyDirty={};orderGroups=freshOrderGroups();orderSelected=new Set();orderReady=false;orderContact={name:'',phone:''};
+ unsub.forEach(f=>f());unsub=[];D=[];claimRecords=[];claimSelected.clear();M=[];laserBookings=[];payments=[];P=[];C={};movementReady=false;supplyCatalogReady=false;supplyHistoryReady=false;supplyChecks=[];supplyAreas=[{id:'manos',name:'Manos',items:[]}];supplyDrafts={};supplyDirty={};orderGroups=freshOrderGroups();orderSelected=new Set();orderReady=false;orderContact={name:'',phone:''};
  PU={name:'Gabriela Vicario',phone:''};
- const er=()=>toast('Sin permiso o sin conexión con la base de datos'),p=access.permissions||{},admin=access.admin,can=(m,a)=>admin||p?.[m]?.[a]===true;
+  const er=()=>toast('Sin permiso o sin conexión con la base de datos'),p=access.permissions||{},admin=access.admin,can=(m,a)=>admin||p?.[m]?.[a]===true;
  if(can('polishes','read'))unsub.push(onSnapshot(collection(db,'polishes'),s=>{P=s.docs.map(d=>{const data=d.data();return {id:d.id,...data,sourceBrand:data.brand,brand:canonPolishBrand(data.brand)}});render();},er));
- if(can('movements','read'))unsub.push(onSnapshot(collection(db,'movements'),s=>{M=s.docs.map(d=>({...d.data(),id:d.id}));movementReady=true;if(tab==='inf')render()},er));
+  if(can('movements','read'))unsub.push(onSnapshot(collection(db,'movements'),s=>{M=s.docs.map(d=>({...d.data(),id:d.id}));movementReady=true;if(tab==='inf'||(tab==='gestion'&&gestionPanel==='inf'))render()},er));
+  if(can('laser','read'))unsub.push(onSnapshot(collection(db,'laserBookings'),s=>{laserBookings=s.docs.map(d=>({id:d.id,...d.data()}));if(tab==='laser'&&!document.activeElement?.matches('[data-laser]'))render()},er));
+  if(can('payments','read'))unsub.push(onSnapshot(collection(db,'payments'),s=>{payments=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||(Number(b.createdAt)||0)-(Number(a.createdAt)||0));if(tab==='pagos')render()},er));
  if(can('settings','read'))unsub.push(onSnapshot(doc(db,'settings','purchaser'),s=>{if(s.exists())PU={...PU,...s.data()}},er));
  if(can('deliveries','read'))unsub.push(onSnapshot(collection(db,'deliveries'),s=>{D=s.docs.map(d=>({id:d.id,...d.data()}));if(tab==='ent')render()},er));
  if(can('serviceClaims','read'))unsub.push(onSnapshot(collection(db,'serviceClaims'),s=>{claimRecords=s.docs.map(d=>({id:d.id,...d.data()}));const ids=new Set(claimRecords.map(x=>x.id));claimSelected.forEach(id=>{if(!ids.has(id))claimSelected.delete(id)});if(tab==='reclamos')render()},er));
@@ -141,7 +152,7 @@ onAuthStateChanged(auth,async u=>{
 });
 $('#go').onclick=()=>{const raw=$('#em').value.trim(),identifier=raw.startsWith('@')?`u.${raw.slice(1).toLowerCase()}@nel-app-stock.invalid`:raw.includes('@')?raw:`u.${raw.toLowerCase()}@nel-app-stock.invalid`;signInWithEmailAndPassword(auth,identifier,$('#pw').value).catch(()=>$('#err').textContent='Correo/usuario o contraseña incorrectos.')};
 $('#out').onclick=()=>signOut(auth);
-if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js?v=20261022-owner-security-v45');
+if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js?v=20261026-new-sections-v50');
 
 /* ---------- Operaciones ---------- */
 const mv=(p,kind,n,now,x={})=>({pid:p.id||'',name:p.name,brand:p.brand,type:p.type,section:p.section,kind,qty:n,at:now,...x});
@@ -228,7 +239,7 @@ function readVoucherForm(){
  error.textContent='';return true;
 }
 function voucherBlob(){return new Promise(resolve=>$('#voucherCanvas')?.toBlob(resolve,'image/png'))}
-function voucherFileName(){return `Voucher-Sancia-${(voucherDraft.number||'sin-factura').replace(/[^a-zA-Z0-9_-]/g,'_')}.png`}
+function voucherFileName(){return `Voucher-Nel App Stock-${(voucherDraft.number||'sin-factura').replace(/[^a-zA-Z0-9_-]/g,'_')}.png`}
 async function createVoucherFile(){const ok=await drawVoucherCanvas();if(!ok)return null;const blob=await voucherBlob();if(!blob){$('#voucherError').textContent='No se pudo preparar la imagen. Revisá que la plantilla esté disponible.';return null}return new File([blob],voucherFileName(),{type:'image/png'})}
 async function prepareVoucher(){if(!readVoucherForm())return null;return createVoucherFile()}
 async function downloadVoucher(){
@@ -236,15 +247,56 @@ async function downloadVoucher(){
 }
 async function shareVoucherWhatsApp(){
  if(!readVoucherForm())return;
- const buyer=voucherDraft.from.trim();const message=`Hola ${buyer} ♥,\n\nGracias por tu compra de un voucher de Sancia. Recordá presentarlo en recepción o enviarlo el día que solicites tu turno.\n\nSancia`;
+ const buyer=voucherDraft.from.trim();const message=`Hola ${buyer} ♥,\n\nGracias por tu compra de un voucher de Nel App Stock. Recordá presentarlo en recepción o enviarlo el día que solicites tu turno.\n\nNel App Stock`;
  const canNativeShare=navigator.share&&navigator.canShare?.({files:[new File(['voucher'],'voucher.png',{type:'image/png'})]});
  const whatsappWindow=canNativeShare?null:window.open('about:blank','_blank');
  const file=await createVoucherFile();if(!file){whatsappWindow?.close();return}
- if(canNativeShare){try{await navigator.share({files:[file],title:'Voucher Sancia',text:message});toast('Elegí WhatsApp y el contacto para compartir el voucher');return}catch(e){if(e?.name==='AbortError')return;console.warn('No se pudo compartir el archivo desde el dispositivo.',e)}}
+ if(canNativeShare){try{await navigator.share({files:[file],title:'Voucher Nel App Stock',text:message});toast('Elegí WhatsApp y el contacto para compartir el voucher');return}catch(e){if(e?.name==='AbortError')return;console.warn('No se pudo compartir el archivo desde el dispositivo.',e)}}
  const link=document.createElement('a');link.href=URL.createObjectURL(file);link.download=file.name;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1500);
  const url=`https://wa.me/?text=${encodeURIComponent(message)}`;if(whatsappWindow)whatsappWindow.location.href=url;else window.location.href=url;
  $('#voucherError').textContent='Se descargó la imagen y abrimos el chat. Adjuntá el archivo descargado en WhatsApp para enviarlo.';
 }
+function money(v){return new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:0}).format(Number(v)||0)}
+function gestionView(){return `<div class="tools" style="margin-bottom:16px"><button class="chip ${gestionPanel==='inf'?'on':''}" data-a="gestionPanel" data-v="inf" ${canOpenTab('inf')?'':'hidden'}>Informe</button><button class="chip ${gestionPanel==='cat'?'on':''}" data-a="gestionPanel" data-v="cat" ${canOpenTab('cat')?'':'hidden'}>Catálogo</button></div>${gestionPanel==='inf'?report():catalog()}`}
+function laserView(){
+ const times=[];for(let m=12*60;m<=20*60;m+=15)times.push(`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`);
+ const byId=new Map(laserBookings.filter(x=>x.date===laserDate).map(x=>[x.id,x]));
+ return `<div class="head"><h2>Láser</h2><p>Turnos cada 15 minutos, de 12:00 a 20:00.</p></div><div class="glass card"><label>Fecha de los turnos<input type="date" id="laserDate" value="${esc(laserDate)}"></label><div class="tools"><button class="btn wa" data-a="laserWhatsApp">Enviar disponibilidad por WhatsApp</button></div><div class="cards" style="margin-top:14px">${times.map(time=>{const id=`${laserDate}_${time.replace(':','')}`,x=byId.get(id)||{};return `<div class="glass card" style="padding:14px"><h3>${time}</h3><label>Nombre<input data-laser="firstName" data-id="${id}" value="${esc(x.firstName||'')}" maxlength="80" placeholder="Nombre"></label><label>Apellido<input data-laser="lastName" data-id="${id}" value="${esc(x.lastName||'')}" maxlength="80" placeholder="Apellido"></label><small>${x.firstName||x.lastName?'Turno reservado':'Disponible'}</small><button class="btn o" data-a="laserSave" data-id="${id}">Guardar horario</button></div>`}).join('')}</div></div>`
+}
+async function shareLaserAvailability(){
+ const times=[];for(let m=12*60;m<=20*60;m+=15)times.push(String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'));
+ const byId=new Map(laserBookings.filter(x=>x.date===laserDate).map(x=>[x.id,x]));
+ const width=1100,rowH=54,canvas=document.createElement('canvas');canvas.width=width;canvas.height=190+times.length*rowH+55;const c=canvas.getContext('2d');c.fillStyle='#fff';c.fillRect(0,0,width,canvas.height);c.fillStyle='#315348';c.fillRect(0,0,width,145);c.fillStyle='#fff';c.font='bold 42px Arial';c.fillText('DISPONIBILIDAD · LÁSER',44,62);c.font='24px Arial';c.fillText(new Date(laserDate+'T12:00:00').toLocaleDateString('es-AR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}),44,108);
+ const cols=[50,300,570],heads=['Horario','Estado','Clienta'];c.fillStyle='#315348';c.font='bold 22px Arial';heads.forEach((h,i)=>c.fillText(h,cols[i],180));let y=215;times.forEach((time,i)=>{const id=laserDate+'_'+time.replace(':',''),x=byId.get(id),name=[x?.firstName,x?.lastName].filter(Boolean).join(' '),reserved=!!name;if(i%2===0){c.fillStyle='#f1f5f2';c.fillRect(32,y-32,width-64,rowH)}c.fillStyle=reserved?'#a34747':'#315348';c.font='22px Arial';c.fillText(time,cols[0],y);c.fillText(reserved?'Reservado':'Disponible',cols[1],y);c.fillStyle='#252a27';c.fillText(name||'—',cols[2],y);y+=rowH});
+ const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));if(!blob){toast('No se pudo preparar la imagen');return}const file=new File([blob],'laser-'+laserDate+'.png',{type:'image/png'});if(navigator.share&&navigator.canShare?.({files:[file]})){try{await navigator.share({files:[file],title:'Disponibilidad de Láser',text:'Horarios de Láser del '+laserDate});return}catch(e){if(e?.name==='AbortError')return;console.warn(e)}}const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);window.open('https://wa.me/?text='+encodeURIComponent('Disponibilidad de Láser '+laserDate+'. La imagen quedó descargada para adjuntarla.'),'_blank','noopener');toast('Imagen descargada; adjuntala en WhatsApp')
+}
+function paymentsView(){
+ const today=(()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)})();
+ if(!paymentDate)paymentDate=today;
+ const rows=payments.filter(x=>x.date===paymentDate).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es'));
+ const total=rows.reduce((n,x)=>n+Number(x.weekly||0)+Number(x.attendance||0),0),cash=rows.reduce((n,x)=>n+Number(x.paid||0),0),transfer=rows.reduce((n,x)=>n+Number(x.toPay||0),0);
+ return `<div class="head"><h2>Pagos</h2><p>Liquidación semanal con presentismo y conciliación entre efectivo y transferencia.</p></div><div class="tools"><label>Fecha<input type="date" id="paymentDate" value="${esc(paymentDate||today)}"></label><button class="btn" data-a="paymentNew">＋ Nuevo pago</button><button class="btn wa" data-a="paymentsWhatsApp">Enviar pagos</button></div><div class="glass card" style="overflow:auto"><table class="tb"><thead><tr><th>Manicurista</th><th>Semanal</th><th>Presentismo</th><th>Total</th><th>Pago · efectivo</th><th>A pagar · transferencia</th><th></th></tr></thead><tbody>${rows.map(x=>{const sum=Number(x.weekly||0)+Number(x.attendance||0);return `<tr><td>${esc(x.name||'')}</td><td>${money(x.weekly)}</td><td>${money(x.attendance)}</td><td><b>${money(sum)}</b></td><td>${money(x.paid)}</td><td>${money(x.toPay)}</td><td><button class="btn o" data-a="paymentEdit" data-id="${x.id}">Editar</button> <button class="btn o" data-a="paymentDelete" data-id="${x.id}">Eliminar</button></td></tr>`}).join('')||'<tr><td colspan="7" class="empty">No hay pagos cargados para esta fecha.</td></tr>'}</tbody><tfoot><tr><th colspan="3">Totales del día</th><th>${money(total)}</th><th>${money(cash)}</th><th>${money(transfer)}</th><th>${cash+transfer===total?'Conciliado':'Revisar'}</th></tr></tfoot></table></div>`
+}
+async function sharePaymentsImage(){
+ const rows=payments.filter(x=>x.date===paymentDate).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es'));if(!rows.length){toast('No hay pagos para esa fecha');return}
+ if(rows.some(x=>Number(x.paid||0)+Number(x.toPay||0)!==Number(x.weekly||0)+Number(x.attendance||0))){toast('Revisá los montos: Pago + A pagar debe coincidir con el total');return}
+ const width=1400,rowH=82,canvas=document.createElement('canvas');canvas.width=width;canvas.height=190+rows.length*rowH+100;const c=canvas.getContext('2d');c.fillStyle='#fbf7ef';c.fillRect(0,0,canvas.width,canvas.height);c.fillStyle='#315348';c.fillRect(0,0,width,150);c.fillStyle='#fff';c.font='bold 48px Arial';c.fillText('PAGOS · NEL APP STOCK',50,65);c.font='26px Arial';c.fillText(new Date(`${paymentDate}T12:00:00`).toLocaleDateString('es-AR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}),50,112);
+ const cols=[50,345,525,705,885,1065],heads=['Manicurista','Semanal','Presentismo','Total','Pago · efectivo','A pagar · transf.'];c.font='bold 20px Arial';c.fillStyle='#315348';heads.forEach((h,i)=>c.fillText(h,cols[i],183));let y=218,total=0,cash=0,transfer=0;rows.forEach((x,i)=>{const sum=Number(x.weekly||0)+Number(x.attendance||0);total+=sum;cash+=Number(x.paid||0);transfer+=Number(x.toPay||0);if(i%2===0){c.fillStyle='#efe8db';c.fillRect(32,y-31,width-64,rowH)}c.fillStyle='#29251f';c.font='22px Arial';c.fillText(String(x.name||'').slice(0,24),cols[0],y);[x.weekly,x.attendance,sum,x.paid,x.toPay].forEach((v,j)=>c.fillText(money(v),cols[j+1],y));y+=rowH});c.fillStyle='#315348';c.fillRect(32,y-25,width-64,75);c.fillStyle='#fff';c.font='bold 22px Arial';c.fillText('TOTALES',cols[0],y+20);[null,null,null,total,cash,transfer].forEach((v,j)=>{if(v!==null)c.fillText(money(v),cols[j],y+20)});
+ const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));if(!blob){toast('No se pudo preparar la imagen');return}const file=new File([blob],`pagos-${paymentDate}.png`,{type:'image/png'});if(navigator.share&&navigator.canShare?.({files:[file]})){try{await navigator.share({files:[file],title:'Reporte de pagos Nel App Stock',text:`Pagos del ${paymentDate}`});return}catch(e){if(e?.name==='AbortError')return;console.warn(e)}}const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);window.open(`https://wa.me/?text=${encodeURIComponent(`Reporte de pagos ${paymentDate}. La imagen quedó descargada para adjuntarla.`)}`,'_blank','noopener');toast('Imagen descargada; adjuntala en WhatsApp')
+}
+function localDate(){const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
+function openPaymentForm(x=null){
+ const weekly=Number(x?.weekly||0),attendance=Number(x?.attendance||0),paid=Number(x?.paid||0),toPay=Number(x?.toPay||0);
+ show(`<h2>${x?'Editar pago':'Nuevo pago'}</h2><p>Fecha de pago: <b>${new Date(`${x?.date||localDate()}T12:00:00`).toLocaleDateString('es-AR')}</b></p><label>Nombre y apellido<input id="payName" maxlength="100" value="${esc(x?.name||'')}" placeholder="Nombre de la manicura"></label><label>Monto semanal<input id="payWeekly" type="number" min="0" step="0.01" value="${weekly}"></label><label>Presentismo<input id="payAttendance" type="number" min="0" step="0.01" value="${attendance}"></label><p>Total calculado: <b id="payTotal">${money(weekly+attendance)}</b></p><label>Pago en efectivo<input id="payCash" type="number" min="0" step="0.01" value="${paid}"></label><label>A pagar por transferencia<input id="payTransfer" type="number" min="0" step="0.01" value="${toPay}"></label><p class="sub">Pago + A pagar debe ser igual al total.</p><p class="er" id="payError"></p><div class="row"><button class="btn o" id="no">Cancelar</button><button class="btn" id="ok">Guardar</button></div>`,async()=>{
+  const name=$('#payName').value.trim(),w=Number($('#payWeekly').value),a=Number($('#payAttendance').value),cash=Number($('#payCash').value),transfer=Number($('#payTransfer').value),sum=w+a;
+  if(!name||![w,a,cash,transfer].every(Number.isFinite)||[w,a,cash,transfer].some(v=>v<0)){ $('#payError').textContent='Completá el nombre y montos válidos.';return }
+  if(Math.round((cash+transfer)*100)!==Math.round(sum*100)){ $('#payError').textContent='Pago + A pagar debe coincidir con el total.';return }
+  const payload={name,weekly:w,attendance:a,total:sum,paid:cash,toPay:transfer,updatedAt:Date.now()};try{if(x)await updateDoc(doc(db,'payments',x.id),payload);else{payload.date=localDate();payload.createdAt=Date.now();await addDoc(collection(db,'payments'),payload)}paymentDate=payload.date||x.date;dlg.close();toast('Pago guardado')}catch(e){fail(e)}
+ });
+ const updateTotal=()=>{const w=Number($('#payWeekly').value)||0,a=Number($('#payAttendance').value)||0;$('#payTotal').textContent=money(w+a)};
+ $('#payWeekly').oninput=updateTotal;$('#payAttendance').oninput=updateTotal;
+}
+async function saveLaserSlot(button){const id=button.dataset.id,card=button.closest('.card'),firstName=card.querySelector('[data-laser="firstName"]').value.trim(),lastName=card.querySelector('[data-laser="lastName"]').value.trim(),time=`${id.slice(-4,-2)}:${id.slice(-2)}`,ref=doc(db,'laserBookings',id),data={date:laserDate,time,firstName,lastName,updatedAt:Date.now()};try{await runTransaction(db,async tx=>{const snap=await tx.get(ref);if(snap.exists())tx.update(ref,data);else tx.set(ref,data)});toast(firstName||lastName?'Turno reservado':'Horario disponible')}catch(e){fail(e)}}
 function render(){
  if(window.__nelSectionAccess&&!canOpenTab(tab)){
   const next=[...$('#tabs').querySelectorAll('[data-t]')].find(b=>!b.hidden);
@@ -253,9 +305,9 @@ function render(){
  if(!tab){$('#add').hidden=true;$('#xf').disabled=true;$('#main').innerHTML='<div class="glass card"><h2>Sin secciones habilitadas</h2><p>Pedile al administrador que active al menos una sección para tu usuario.</p></div>';return}
  const sl=$('#chips')?.scrollLeft||0;
  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
- const z=P.filter(needs).length;$('#tabs [data-t="res"] .tl').innerHTML='Resumen'+(z?` <i class="nb" aria-label="${z} en falta">${z}</i>`:'');
+  const z=P.filter(needs).length;$('#tabs [data-t="res"] .tl').innerHTML='Resumen'+(z?` <i class="nb" aria-label="${z} en falta">${z}</i>`:'');
   $('#add').hidden=!(tab==='rep'||tab==='uso')||!(window.__nelSectionAccess?.admin||window.__nelSectionAccess?.permissions?.polishes?.create===true);
-  $('#main').innerHTML=tab==='res'?resumen():tab==='inf'?report():tab==='cat'?catalog():tab==='voucher'?voucherView():tab==='insumos'?supplyView():tab==='pedidos'?orderView():tab==='reclamos'?claimsView():tab==='ent'?deliveryView():tab==='alr'?alertsView():shell();
+  $('#main').innerHTML=tab==='res'?resumen():tab==='inf'?report():tab==='cat'?catalog():tab==='gestion'?gestionView():tab==='laser'?laserView():tab==='pagos'?paymentsView():tab==='voucher'?voucherView():tab==='insumos'?supplyView():tab==='pedidos'?orderView():tab==='reclamos'?claimsView():tab==='ent'?deliveryView():tab==='alr'?alertsView():shell();
   applyActionPermissions();
   if(tab==='voucher')drawVoucherCanvas();
  if(tab==='rep'||tab==='uso'){list();applyActionPermissions();const c=$('#chips');if(c)c.scrollLeft=sl}
@@ -387,7 +439,7 @@ function resumen(){
  const zero=P.filter(needs).sort((a,b)=>(a.qty<1?0:1)-(b.qty<1?0:1)||a.brand.localeCompare(b.brand,'es')||a.name.localeCompare(b.name,'es',{numeric:true})),z0=zero.filter(p=>p.qty<1).length,zl=zero.length-z0;
  const alerta=zero.length?`<div class="glass alert" role="alert"><div class="ah"><span class="ai" aria-hidden="true"><svg class="siren-icon" viewBox="0 0 96 96"><path class="siren-rays" d="m15 25-8-8m23-6-2-10m-23 34-10-3"/><path class="siren-base" d="M17 61h62l5 19q1 6-6 7H18q-7-1-6-7z"/><path class="siren-dome" d="M23 61V45q0-24 25-24t25 24v16z"/><path class="siren-gloss" d="M31 54V44q0-13 11-16"/><path class="siren-triangle" d="M63 15 91 59H49z"/><path class="siren-mark" d="M70 29v12m0 8v1"/></svg></span><div><h3>Esmaltes en falta</h3><p>${z0?`${z0} sin stock`:''}${z0&&zl?' · ':''}${zl?`${zl} bajo el mínimo`:''}. La alerta se quita sola cuando repongas.</p></div><button class="btn wa" data-a="wa"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.9 7L4 20l1.1-4.9A8 8 0 1 1 21 12z"/></svg>Enviar por WhatsApp</button></div><div class="al">${zero.map(p=>`<button class="ar ${p.qty<1?'missing':''}" data-go="${p.section}" data-q="${esc(p.name)}" title="Ir a ${SEC[p.section]}">${bmark(p.brand)}<span class="at"><b>${esc(p.name)}</b><small>${esc(p.brand)} · ${esc(p.type)} · ${SEC[p.section]}${p.qty<1?' · EN FALTA':''}</small></span>${p.qty<1?'<span class="pill bad">Stock 0 · EN FALTA</span>':`<span class="pill warn">Quedan ${p.qty} · mín. ${minOf(p)}</span>`}</button>`).join('')}</div></div>`:'';
  const hoyN=D.filter(x=>x.date===supplyToday()),hero=`<div class="hero"><span class="hbadge">HOY</span><h3>${esc(new Date().toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'}).replace(/^./,c=>c.toUpperCase()))}</h3><p>${hoyN.length} entrega${hoyN.length===1?'':'s'} registrada${hoyN.length===1?'':'s'} hoy (${hoyN.reduce((a,x)=>a+x.qty,0)} unidades)${zero.length?` · ${zero.length} esmalte${zero.length===1?'':'s'} en falta`:''}.</p><div class="hbtn"><button class="hb" data-a="dnew">+ Nueva entrega</button><button class="hb o" data-go="uso" data-q="">Ver En uso</button></div></div>`;
- return `<div class="head"><h2>Resumen</h2><p>Así está el stock de Sancia hoy</p></div>${alerta}
+ return `<div class="head"><h2>Resumen</h2><p>Así está el stock de Nel App Stock hoy</p></div>${alerta}
  <div class="stats"><div class="glass stat" style="--c:#C9A24D"><b>${sum('rep')}</b><span>unidades en reposición</span></div><div class="glass stat" style="--c:#2F6BFF"><b>${sum('uso')}</b><span>unidades en uso</span></div><div class="glass stat" style="--c:#2BA57A"><b>${new Set(P.map(p=>key(p))).size}</b><span>esmaltes distintos</span></div><div class="glass stat" style="--c:#E5536B"><b>${low.length}</b><span>con stock bajo o agotado</span></div></div>
  <div class="cards dashboard-primary">${hero}<div class="glass card"><h3>Unidades por marca</h3>${bl.length?`<div class="dn">${donut(bl)}${legend(bl)}</div>`:'<p class="empty">Cargá tus primeros esmaltes.</p>'}</div>
  <div class="glass card"><h3>Movimientos · 14 días</h3>${cols()}</div></div>
@@ -541,7 +593,7 @@ async function exportXls(only){
  if(!only){const mc=[['Fecha',16,'center'],['Movimiento',15,'center'],['Esmalte',32,'left'],['Marca',18,'left'],['Tipo',20,'left'],['Cantidad',12,'center'],['Sección',16,'left']],wm=sheetBase(wb,'Movimientos','Historial de movimientos',mc);
  [...M].sort((a,b)=>b.at-a.at).forEach((m,i)=>{const r=addRow(wm,[fmt(m.at),m.kind==='in'?'Ingreso':'Retiro',m.name,m.brand,m.type,m.qty,SEC[m.section]],i,mc);r.getCell(2).font={name:'Calibri',size:11,bold:true,color:{argb:m.kind==='in'?'FF1E7A53':'FFA3303F'}}});
  }
- await saveWb(wb,`Sancia-${only==='uso'?'en-uso':only==='rep'?'reposicion':'stock'}-${new Date().toISOString().slice(0,10)}.xlsx`);toast('Excel descargado');
+ await saveWb(wb,`Nel App Stock-${only==='uso'?'en-uso':only==='rep'?'reposicion':'stock'}-${new Date().toISOString().slice(0,10)}.xlsx`);toast('Excel descargado');
  }catch(e){console.error(e);toast('No se pudo crear el Excel')}
 }
 async function template(sec){
@@ -551,7 +603,7 @@ async function template(sec){
  for(let i=0;i<80;i++){const r=addRow(ws,['','','',''],i,cs),n=r.number;
   ws.getCell(n,3).dataValidation={type:'list',allowBlank:true,formulae:['"'+types().join(',')+'"']};
   ws.getCell(n,4).dataValidation={type:'whole',operator:'greaterThanOrEqual',allowBlank:true,formulae:[0]}}
- await saveWb(wb,sec==='uso'?'Plantilla-en-uso-Sancia.xlsx':sec==='rep'?'Plantilla-reposicion-Sancia.xlsx':'Plantilla-esmaltes-Sancia.xlsx');
+ await saveWb(wb,sec==='uso'?'Plantilla-en-uso-Nel App Stock.xlsx':sec==='rep'?'Plantilla-reposicion-Nel App Stock.xlsx':'Plantilla-esmaltes-Nel App Stock.xlsx');
  }catch(e){console.error(e);toast('No se pudo crear la plantilla')}
 }
 async function readXls(f){
@@ -860,7 +912,7 @@ async function exportDeliveries(){
   const wb=new ExcelJS.Workbook();wb.creator='Nel App Stock by Nelson Carrizo';
   const cs=[['Fecha',16,'center'],['Cantidad',12,'center'],['Producto',34,'left'],['Entregado a',20,'left'],['Sector',16,'left'],['Observaciones',48,'left']],ws=sheetBase(wb,'Entregas','Registro de entregas',cs);
   [...D].sort((a,b)=>a.date.localeCompare(b.date)||(Number(a.createdAt)||0)-(Number(b.createdAt)||0)).forEach((x,i)=>addRow(ws,[dfmt(x.date),x.qty,x.product,x.to,x.sector,x.note||''],i,cs));
-  await saveWb(wb,`Sancia-entregas-${supplyToday()}.xlsx`);toast('Excel descargado');
+  await saveWb(wb,`Nel App Stock-entregas-${supplyToday()}.xlsx`);toast('Excel descargado');
  }catch(e){console.error(e);toast('No se pudo crear el Excel')}
 }
 async function readDeliveries(f){
@@ -996,6 +1048,13 @@ $('#main').onclick=e=>{
   const t=e.target.closest('[data-brand],[data-days],[data-a],[data-more],[data-sc],[data-go],#voucherDownload,#voucherWhatsApp');if(!t)return;
   if(t.id==='voucherDownload'){downloadVoucher();return}
   if(t.id==='voucherWhatsApp'){shareVoucherWhatsApp();return}
+  if(t.dataset.a==='gestionPanel'){if(canOpenTab(t.dataset.v)){gestionPanel=t.dataset.v;render()}return}
+  if(t.dataset.a==='paymentNew'){openPaymentForm();return}
+  if(t.dataset.a==='laserWhatsApp'){shareLaserAvailability();return}
+  if(t.dataset.a==='laserSave'){saveLaserSlot(t);return}
+  if(t.dataset.a==='paymentEdit'){const x=payments.find(r=>r.id===t.dataset.id);if(x)openPaymentForm(x);return}
+  if(t.dataset.a==='paymentDelete'){const x=payments.find(r=>r.id===t.dataset.id);if(x&&confirm(`¿Eliminar el pago de ${x.name||'esta manicura'}?`))deleteDoc(doc(db,'payments',x.id)).then(()=>toast('Pago eliminado')).catch(fail);return}
+  if(t.dataset.a==='paymentsWhatsApp'){sharePaymentsImage();return}
  if(t.dataset.a==='claimHide'||t.dataset.a==='claimRestore'){
   const name=t.dataset.name||'',key=norm(name);
   if(t.dataset.a==='claimHide'&&!claimHiddenNames.some(x=>norm(x)===key))claimHiddenNames=[...claimHiddenNames,name];
@@ -1066,6 +1125,8 @@ $('#main').oninput=e=>{
  if(e.target.hasAttribute('data-supply-qty')){const a=currentSupplyArea(),d=supplyDraftFor(a);d.items[e.target.dataset.supplyQty].qty=e.target.value;supplyDirty[a.id]=true}
 };
 $('#main').onchange=e=>{
+  if(e.target.id==='laserDate'){laserDate=e.target.value||localDate();render();return}
+  if(e.target.id==='paymentDate'){paymentDate=e.target.value||localDate();render();return}
  if(e.target.matches('[data-claim-select]')){const id=e.target.dataset.claimSelect;if(e.target.checked)claimSelected.add(id);else claimSelected.delete(id);updateClaimShareControls();return}
  if(['dsec','dper','dfrom','dto'].includes(e.target.id)){const k={dsec:'sec',dper:'per',dfrom:'from',dto:'to'}[e.target.id];dl[k]=e.target.value;if(k==='from'||k==='to')dl.rng='';dl.lim=60;render();return}
  if(e.target.id==='supplyArea'){supplyAreaId=e.target.value;render();return}
