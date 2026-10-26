@@ -247,7 +247,7 @@ async function downloadVoucher(){
 }
 async function shareVoucherWhatsApp(){
  if(!readVoucherForm())return;
- const buyer=voucherDraft.from.trim();const message=`Hola ${buyer} ♥,\n\nGracias por tu compra de un voucher de Nel System. Recordá presentarlo en recepción o enviarlo el día que solicites tu turno.\n\nNel System`;
+ const buyer=voucherDraft.from.trim();const message=`Hola ${buyer} ♥,\n\nGracias por tu compra de un voucher de Nel System. Recordá presentarlo en recepción o enviarlo el día que solicites tu turno.\n\nEnviado por Nel System.`;
  const canNativeShare=navigator.share&&navigator.canShare?.({files:[new File(['voucher'],'voucher.png',{type:'image/png'})]});
  const whatsappWindow=canNativeShare?null:window.open('about:blank','_blank');
  const file=await createVoucherFile();if(!file){whatsappWindow?.close();return}
@@ -267,7 +267,7 @@ async function shareLaserAvailability(){
  const times=[];for(let m=12*60;m<=20*60;m+=15)times.push(String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'));
  const byId=new Map(laserBookings.filter(x=>x.date===laserDate).map(x=>[x.id,x]));
  const width=1100,rowH=54,canvas=document.createElement('canvas');canvas.width=width;canvas.height=190+times.length*rowH+55;const c=canvas.getContext('2d');c.fillStyle='#fff';c.fillRect(0,0,width,canvas.height);c.fillStyle='#315348';c.fillRect(0,0,width,145);c.fillStyle='#fff';c.font='bold 42px Arial';c.fillText('DISPONIBILIDAD · LÁSER',44,62);c.font='18px Arial';c.textAlign='right';c.fillText('By Nelson Carrizo ®',width-44,62);c.textAlign='left';c.font='24px Arial';c.fillText(new Date(laserDate+'T12:00:00').toLocaleDateString('es-AR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}),44,108);
- const cols=[50,300,570],heads=['Horario','Estado','Clienta'];c.fillStyle='#315348';c.font='bold 22px Arial';heads.forEach((h,i)=>c.fillText(h,cols[i],180));let y=215;times.forEach((time,i)=>{const id=laserDate+'_'+time.replace(':',''),x=byId.get(id),name=[x?.firstName,x?.lastName].filter(Boolean).join(' '),reserved=!!name;if(i%2===0){c.fillStyle='#f1f5f2';c.fillRect(32,y-32,width-64,rowH)}c.fillStyle=reserved?'#a34747':'#315348';c.font='22px Arial';c.fillText(time,cols[0],y);c.fillText(reserved?'Reservado':'Disponible',cols[1],y);c.fillStyle='#252a27';c.fillText(name||'—',cols[2],y);y+=rowH});
+ const cols=[50,300,570],heads=['Horario','Estado','Clienta'];c.fillStyle='#315348';c.font='bold 22px Arial';heads.forEach((h,i)=>c.fillText(h,cols[i],180));let y=215;times.forEach((time,i)=>{const id=laserDate+'_'+time.replace(':',''),x=byId.get(id),name=[x?.firstName,x?.lastName].filter(Boolean).join(' '),reserved=!!name;if(i%2===0){c.fillStyle='#f1f5f2';c.fillRect(32,y-32,width-64,rowH)}c.fillStyle=reserved?'#a34747':'#315348';c.font='22px Arial';c.fillText(time,cols[0],y);c.fillText(reserved?'Reservado':'Disponible',cols[1],y);c.fillStyle='#252a27';c.fillText(name||'—',cols[2],y);y+=rowH});c.fillStyle='#315348';c.font='18px Arial';c.textAlign='center';c.fillText('Enviado por Nel System.',width/2,canvas.height-16);c.textAlign='left';
  const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));if(!blob){toast('No se pudo preparar la imagen');return}const file=new File([blob],'laser-'+laserDate+'.png',{type:'image/png'});if(navigator.share&&navigator.canShare?.({files:[file]})){try{await navigator.share({files:[file],title:'Disponibilidad de Láser',text:'Horarios de Láser del '+laserDate});return}catch(e){if(e?.name==='AbortError')return;console.warn(e)}}const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);window.open('https://wa.me/?text='+encodeURIComponent('Disponibilidad de Láser '+laserDate+'. La imagen quedó descargada para adjuntarla.'),'_blank','noopener');toast('Imagen descargada; adjuntala en WhatsApp')
 }
 function paymentsView(){
@@ -281,7 +281,7 @@ async function sharePaymentsImage(){
  const rows=payments.filter(x=>x.date===paymentDate).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es'));if(!rows.length){toast('No hay pagos para esa fecha');return}
  if(rows.some(x=>Number(x.paid||0)+Number(x.toPay||0)!==Number(x.weekly||0)+Number(x.attendance||0))){toast('Revisá los montos: Pago + A pagar debe coincidir con el total');return}
  const width=1400,rowH=82,canvas=document.createElement('canvas');canvas.width=width;canvas.height=190+rows.length*rowH+100;const c=canvas.getContext('2d');c.fillStyle='#fbf7ef';c.fillRect(0,0,canvas.width,canvas.height);c.fillStyle='#315348';c.fillRect(0,0,width,150);c.fillStyle='#fff';c.font='bold 48px Arial';c.fillText('PAGOS · NEL SYSTEM',50,65);c.font='18px Arial';c.textAlign='right';c.fillText('By Nelson Carrizo ®',width-50,65);c.textAlign='left';c.font='26px Arial';c.fillText(new Date(`${paymentDate}T12:00:00`).toLocaleDateString('es-AR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}),50,112);
- const cols=[50,345,525,705,885,1065],heads=['Manicurista','Semanal','Presentismo','Total','Pago · efectivo','A pagar · transf.'];c.font='bold 20px Arial';c.fillStyle='#315348';heads.forEach((h,i)=>c.fillText(h,cols[i],183));let y=218,total=0,cash=0,transfer=0;rows.forEach((x,i)=>{const sum=Number(x.weekly||0)+Number(x.attendance||0);total+=sum;cash+=Number(x.paid||0);transfer+=Number(x.toPay||0);if(i%2===0){c.fillStyle='#efe8db';c.fillRect(32,y-31,width-64,rowH)}c.fillStyle='#29251f';c.font='22px Arial';c.fillText(String(x.name||'').slice(0,24),cols[0],y);[x.weekly,x.attendance,sum,x.paid,x.toPay].forEach((v,j)=>c.fillText(money(v),cols[j+1],y));y+=rowH});c.fillStyle='#315348';c.fillRect(32,y-25,width-64,75);c.fillStyle='#fff';c.font='bold 22px Arial';c.fillText('TOTALES',cols[0],y+20);[null,null,null,total,cash,transfer].forEach((v,j)=>{if(v!==null)c.fillText(money(v),cols[j],y+20)});
+ const cols=[50,345,525,705,885,1065],heads=['Manicurista','Semanal','Presentismo','Total','Pago · efectivo','A pagar · transf.'];c.font='bold 20px Arial';c.fillStyle='#315348';heads.forEach((h,i)=>c.fillText(h,cols[i],183));let y=218,total=0,cash=0,transfer=0;rows.forEach((x,i)=>{const sum=Number(x.weekly||0)+Number(x.attendance||0);total+=sum;cash+=Number(x.paid||0);transfer+=Number(x.toPay||0);if(i%2===0){c.fillStyle='#efe8db';c.fillRect(32,y-31,width-64,rowH)}c.fillStyle='#29251f';c.font='22px Arial';c.fillText(String(x.name||'').slice(0,24),cols[0],y);[x.weekly,x.attendance,sum,x.paid,x.toPay].forEach((v,j)=>c.fillText(money(v),cols[j+1],y));y+=rowH});c.fillStyle='#315348';c.fillRect(32,y-25,width-64,75);c.fillStyle='#fff';c.font='bold 22px Arial';c.fillText('TOTALES',cols[0],y+20);[null,null,null,total,cash,transfer].forEach((v,j)=>{if(v!==null)c.fillText(money(v),cols[j],y+20)});c.fillStyle='#315348';c.font='18px Arial';c.textAlign='center';c.fillText('Enviado por Nel System.',width/2,canvas.height-20);c.textAlign='left';
  const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));if(!blob){toast('No se pudo preparar la imagen');return}const file=new File([blob],`pagos-${paymentDate}.png`,{type:'image/png'});if(navigator.share&&navigator.canShare?.({files:[file]})){try{await navigator.share({files:[file],title:'Reporte de pagos Nel System',text:`Pagos del ${paymentDate}`});return}catch(e){if(e?.name==='AbortError')return;console.warn(e)}}const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);window.open(`https://wa.me/?text=${encodeURIComponent(`Reporte de pagos ${paymentDate}. La imagen quedó descargada para adjuntarla.`)}`,'_blank','noopener');toast('Imagen descargada; adjuntala en WhatsApp')
 }
 function localDate(){const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
@@ -341,7 +341,7 @@ const orderItemsSelected=()=>orderGroups.flatMap(g=>g.items.filter(x=>orderSelec
 const orderMessage=(name=orderContact.name)=>{
  const items=orderItemsSelected(),lines=[name?`Hola ${name}!`:'Hola!','Nel System te pasa de forma automática el pedido de insumos a comprar:',''];
  orderGroups.forEach(g=>{const selected=g.items.filter(x=>orderSelected.has(x.id));if(!selected.length)return;lines.push(`*${g.name}*`);selected.forEach(x=>lines.push(`• ${x.name}`));lines.push('')});
- return items.length?lines.join('\n').trim():`${name?`Hola ${name}!\n`:''}Marcá los insumos que necesitás para generar el pedido.`;
+ return items.length?`${lines.join('\n').trim()}\n\nEnviado por Nel System`:`${name?`Hola ${name}!\n`:''}Marcá los insumos que necesitás para generar el pedido.`;
 };
 function saveOrderState(){
  const b=writeBatch(db);
@@ -565,7 +565,7 @@ function sheetBase(wb,name,title,cols){
  cols.forEach((c,i)=>{ws.getColumn(i+1).width=c[1]});
  ws.mergeCells(`A1:${last}1`);ws.mergeCells(`A2:${last}2`);
  for(let r=1;r<=2;r++)for(let c=1;c<=n;c++)ws.getCell(r,c).fill=fill('FF273046');
- const t=ws.getCell('A1');t.value='SANCIA';t.font={name:'Georgia',size:24,bold:true,color:{argb:'FFFFFFFF'}};t.alignment={vertical:'middle',horizontal:'left',indent:1};ws.getRow(1).height=44;
+ const t=ws.getCell('A1');t.value='NEL SYSTEM';t.font={name:'Georgia',size:24,bold:true,color:{argb:'FFFFFFFF'}};t.alignment={vertical:'middle',horizontal:'left',indent:1};ws.getRow(1).height=44;
  const u=ws.getCell('A2');u.value=`Nel System · by Nelson Carrizo   |   ${title}   |   ${new Date().toLocaleDateString('es-AR')}`;u.font={name:'Calibri',size:10,italic:true,color:{argb:'FFE3C08D'}};u.alignment={vertical:'middle',horizontal:'left',indent:1};ws.getRow(2).height=24;
  ws.getRow(3).height=8;const h=ws.getRow(4);h.height=28;
  cols.forEach((c,i)=>{const x=h.getCell(i+1);x.value=c[0];x.font={name:'Calibri',bold:true,size:11,color:{argb:'FF273046'}};x.fill=fill('FFE3C08D');x.alignment={vertical:'middle',horizontal:c[2],indent:c[2]==='left'?1:0};x.border={bottom:{style:'medium',color:{argb:'FF273046'}}}});
@@ -839,7 +839,7 @@ function claimRows(records){
 function claimReportMessage(records){
  const sentDate=claimDateLabel(supplyToday());
  const cases=records.map((x,i)=>`*RECLAMO ${i+1}*\n*Clienta:* — ${String(x.client||'').trim()||'Sin nombre cargado'}\n• *Fecha del servicio:* ${claimDateLabel(x.serviceDate)}\n• *Fecha del reclamo:* ${claimDateLabel(x.claimDate)}\n• *Manicura responsable:* ${String(x.manicurist||'').trim()||'No especificada'}\n• *Área del servicio:* ${String(x.area||'').trim()||'No especificada'}\n• *Observación y respuesta brindada:*\n${String(x.observations||'').trim()||'Sin detalle cargado.'}`).join('\n\n──────────────\n\n');
- return `*REPORTE DE RECLAMOS | SANCIA*\n*Fecha de envío:* ${sentDate}\n*Cantidad de casos:* ${records.length}\n\n${cases}\n\n_Reporte emitido desde Nel System._`;
+ return `*REPORTE DE RECLAMOS | NEL SYSTEM*\n*Fecha de envío:* ${sentDate}\n*Cantidad de casos:* ${records.length}\n\n${cases}\n\n_Enviado por Nel System._`;
 }
 function updateClaimShareControls(){
  const selectedCount=claimRecords.filter(x=>claimSelected.has(x.id)).length,visibleCount=claimVisibleRecords(claimsForPeriod()).length;
@@ -1002,7 +1002,9 @@ function waMsg(name,items){
  const bs=Object.keys(by).sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'})),z=items.filter(p=>p.qty<1).length,l=items.length-z;
  let t=`Hola${name?` ${name}`:''}!\nEl sistema *Nel System* detectó estos esmaltes con stock bajo:\n`;
  bs.forEach(b=>{t+=`\n*${b}*\n`;by[b].sort((x,y)=>x.name.localeCompare(y.name,'es',{numeric:true})).forEach(p=>{t+=`• ${p.name}\n`})});
- return t+`\nTotal: ${items.length} esmalte${items.length===1?'':'s'} (${z} sin stock, ${l} con stock bajo).\n\nQue tengas un buen día.\nSaludos cordiales.`;
+ return t+`\nTotal: ${items.length} esmalte${items.length===1?'':'s'} (${z} sin stock, ${l} con stock bajo).\n\nQue tengas un buen día.\nSaludos cordiales.
+
+Enviado por Nel System.`;
 }
 function openWhatsApp(){
  const items=waItems();if(!items.length){toast('No hay esmaltes en falta para avisar');return}
