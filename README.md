@@ -1,4 +1,6 @@
-# Nel App Stock · Sancia
+# Nel App Stock
+
+### By Nelson Carrizo ®
 Control de stock de esmaltes (Reposición / En uso / Informe). PWA con Firebase Auth + Firestore.
 
 Incluye también Láser (turnos cada 15 minutos de 12:00 a 20:00), Pagos (semanal + presentismo, conciliado entre efectivo y transferencia) y una entrada unificada para Informe y Catálogo.
