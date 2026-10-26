@@ -111,8 +111,8 @@ service cloud.firestore {
       let p = data.permissions;
       return p is map && p.keys().hasOnly([
           'polishes', 'movements', 'serviceClaims', 'deliveries',
-          'supplyControls', 'supplyOrders', 'vouchers', 'settings'
-        ]) && p.size() <= 8 &&
+          'supplyControls', 'supplyOrders', 'vouchers', 'settings', 'laser', 'payments'
+        ]) && p.size() <= 10 &&
         (!('polishes' in p) || validPermissionEntry(p.polishes)) &&
         (!('movements' in p) || validPermissionEntry(p.movements)) &&
         (!('serviceClaims' in p) || validPermissionEntry(p.serviceClaims)) &&
@@ -120,7 +120,9 @@ service cloud.firestore {
         (!('supplyControls' in p) || validPermissionEntry(p.supplyControls)) &&
         (!('supplyOrders' in p) || validPermissionEntry(p.supplyOrders)) &&
         (!('vouchers' in p) || validPermissionEntry(p.vouchers)) &&
-        (!('settings' in p) || validPermissionEntry(p.settings));
+        (!('settings' in p) || validPermissionEntry(p.settings)) &&
+        (!('laser' in p) || validPermissionEntry(p.laser)) &&
+        (!('payments' in p) || validPermissionEntry(p.payments));
     }
 
     function validProfile(uid, data) {
@@ -208,6 +210,31 @@ service cloud.firestore {
         data.note is string && data.note.size() <= 1000 &&
         data.items is list && data.items.size() <= 250 &&
         validNumber(data, 'createdAt', 0, 4102444800000);
+    }
+
+    function validLaserBooking(data) {
+      return hasOnly(data, ['date', 'time', 'firstName', 'lastName', 'updatedAt']) &&
+        hasRequired(data, ['date', 'time', 'firstName', 'lastName', 'updatedAt']) &&
+        validDate(data, 'date') && data.time is string &&
+        data.time.matches('^(1[2-9]:(00|15|30|45)|20:00)$') &&
+        data.firstName is string && data.firstName.size() <= 80 &&
+        data.lastName is string && data.lastName.size() <= 80 &&
+        validNumber(data, 'updatedAt', 0, 4102444800000);
+    }
+
+    function validPayment(data) {
+      return hasOnly(data, ['date', 'name', 'weekly', 'attendance', 'total', 'paid', 'toPay', 'createdAt', 'updatedAt']) &&
+        hasRequired(data, ['date', 'name', 'weekly', 'attendance', 'total', 'paid', 'toPay', 'createdAt', 'updatedAt']) &&
+        validDate(data, 'date') && validText(data, 'name', 100) &&
+        validNumber(data, 'weekly', 0, 100000000) &&
+        validNumber(data, 'attendance', 0, 100000000) &&
+        validNumber(data, 'total', 0, 200000000) &&
+        validNumber(data, 'paid', 0, 200000000) &&
+        validNumber(data, 'toPay', 0, 200000000) &&
+        data.total == data.weekly + data.attendance &&
+        data.total == data.paid + data.toPay &&
+        validNumber(data, 'createdAt', 0, 4102444800000) &&
+        validNumber(data, 'updatedAt', 0, 4102444800000);
     }
 
     function validCatalog(data) {
@@ -345,6 +372,20 @@ service cloud.firestore {
       allow create: if can('supplyControls', 'create') && validSupplyControl(request.resource.data);
       allow update: if can('supplyControls', 'edit') && validSupplyControl(request.resource.data);
       allow delete: if can('supplyControls', 'delete');
+    }
+
+    match /laserBookings/{id} {
+      allow get, list: if can('laser', 'read');
+      allow create: if (can('laser', 'create') || can('laser', 'edit')) && validLaserBooking(request.resource.data);
+      allow update: if (can('laser', 'create') || can('laser', 'edit')) && validLaserBooking(request.resource.data);
+      allow delete: if can('laser', 'delete');
+    }
+
+    match /payments/{id} {
+      allow get, list: if can('payments', 'read');
+      allow create: if can('payments', 'create') && validPayment(request.resource.data);
+      allow update: if can('payments', 'edit') && validPayment(request.resource.data);
+      allow delete: if can('payments', 'delete');
     }
 
     match /settings/{id} {
