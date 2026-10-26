@@ -36,6 +36,7 @@ const bmark=b=>{const l=logoOf(b);return l?`<span class="bl"><img src="${l}" alt
 const minOf=p=>Number(p.min)>0?Number(p.min):0;
 const isLow=p=>p.qty>=1&&minOf(p)>0&&p.qty<minOf(p);
 const needs=p=>p.qty<1||isLow(p);
+const stockAlertGroups=(onlyNeeding=true)=>{const groups=new Map();P.forEach(p=>{const k=polishKey(p);let g=groups.get(k);if(!g){g={items:[],qty:0,min:0};groups.set(k,g)}g.items.push(p);g.qty+=Number(p.qty)||0;g.min=Math.max(g.min,minOf(p))});return [...groups.values()].filter(g=>onlyNeeding?(g.qty<1||(g.min>0&&g.qty<g.min)):g.min>0).map(g=>{const p=g.items.find(x=>x.section==='rep')||g.items[0];return {...p,qty:g.qty,min:g.min,sections:[...new Set(g.items.map(x=>x.section))],groupKey:polishKey(p),members:g.items}})};
 const st=p=>p.qty<1?['bad','Agotado']:(minOf(p)>0?p.qty<minOf(p):(p.section!=='uso'&&p.qty<=2))?['warn',minOf(p)>0?'Bajo mínimo':'Stock bajo']:['ok','Disponible'];
 
 let C={},P=[],M=[],claimRecords=[],laserBookings=[],payments=[],laserDate=(()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)})(),paymentDate='',gestionPanel='inf',claimPeriod='month',claimQuery='',claimHiddenNames=[],claimSelected=new Set(),movementReady=false,tab='res',brand='Todas',type='Todos',q='',days=30,lim=20,stat='Todos',ing='Todos',srt='new',unsub=[];
@@ -436,8 +437,8 @@ function resumen(){
  const sum=s=>P.filter(p=>p.section===s).reduce((a,p)=>a+p.qty,0),low=P.filter(p=>p.qty<1||(minOf(p)>0?p.qty<minOf(p):(p.section!=='uso'&&p.qty<=2))).sort((a,b)=>a.qty-b.qty);
  const grp=f=>{const m={};P.forEach(p=>m[f(p)]=(m[f(p)]||0)+p.qty);return Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([label,v])=>({label,v}))};
  const bl=grp(p=>p.brand),tl=grp(p=>p.type),tm=tl[0]?.v||1;
- const zero=P.filter(needs).sort((a,b)=>(a.qty<1?0:1)-(b.qty<1?0:1)||a.brand.localeCompare(b.brand,'es')||a.name.localeCompare(b.name,'es',{numeric:true})),z0=zero.filter(p=>p.qty<1).length,zl=zero.length-z0;
- const alerta=zero.length?`<div class="glass alert" role="alert"><div class="ah"><span class="ai" aria-hidden="true"><svg class="siren-icon" viewBox="0 0 96 96"><path class="siren-rays" d="m15 25-8-8m23-6-2-10m-23 34-10-3"/><path class="siren-base" d="M17 61h62l5 19q1 6-6 7H18q-7-1-6-7z"/><path class="siren-dome" d="M23 61V45q0-24 25-24t25 24v16z"/><path class="siren-gloss" d="M31 54V44q0-13 11-16"/><path class="siren-triangle" d="M63 15 91 59H49z"/><path class="siren-mark" d="M70 29v12m0 8v1"/></svg></span><div><h3>Esmaltes en falta</h3><p>${z0?`${z0} sin stock`:''}${z0&&zl?' · ':''}${zl?`${zl} bajo el mínimo`:''}. La alerta se quita sola cuando repongas.</p></div><button class="btn wa" data-a="wa"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.9 7L4 20l1.1-4.9A8 8 0 1 1 21 12z"/></svg>Enviar por WhatsApp</button></div><div class="al">${zero.map(p=>`<button class="ar ${p.qty<1?'missing':''}" data-go="${p.section}" data-q="${esc(p.name)}" title="Ir a ${SEC[p.section]}">${bmark(p.brand)}<span class="at"><b>${esc(p.name)}</b><small>${esc(p.brand)} · ${esc(p.type)} · ${SEC[p.section]}${p.qty<1?' · EN FALTA':''}</small></span>${p.qty<1?'<span class="pill bad">Stock 0 · EN FALTA</span>':`<span class="pill warn">Quedan ${p.qty} · mín. ${minOf(p)}</span>`}</button>`).join('')}</div></div>`:'';
+ const zero=stockAlertGroups().sort((a,b)=>(a.qty<1?0:1)-(b.qty<1?0:1)||a.brand.localeCompare(b.brand,'es')||a.name.localeCompare(b.name,'es',{numeric:true})),z0=zero.filter(p=>p.qty<1).length,zl=zero.length-z0;
+ const alerta=zero.length?`<div class="glass alert" role="alert"><div class="ah"><span class="ai" aria-hidden="true"><svg class="siren-icon" viewBox="0 0 96 96"><path class="siren-rays" d="m15 25-8-8m23-6-2-10m-23 34-10-3"/><path class="siren-base" d="M17 61h62l5 19q1 6-6 7H18q-7-1-6-7z"/><path class="siren-dome" d="M23 61V45q0-24 25-24t25 24v16z"/><path class="siren-gloss" d="M31 54V44q0-13 11-16"/><path class="siren-triangle" d="M63 15 91 59H49z"/><path class="siren-mark" d="M70 29v12m0 8v1"/></svg></span><div><h3>Esmaltes en falta</h3><p>${z0?`${z0} sin stock`:''}${z0&&zl?' · ':''}${zl?`${zl} bajo el mínimo`:''}. La alerta se quita sola cuando repongas.</p></div><button class="btn wa" data-a="wa"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.9 7L4 20l1.1-4.9A8 8 0 1 1 21 12z"/></svg>Enviar por WhatsApp</button></div><div class="al">${zero.map(p=>`<button class="ar ${p.qty<1?'missing':''}" data-go="${p.section}" data-q="${esc(p.name)}" title="Ir a ${SEC[p.section]}">${bmark(p.brand)}<span class="at"><b>${esc(p.name)}</b><small>${esc(p.brand)} · ${esc(p.type)} · ${p.sections.map(s=>SEC[s]).join(' · ')}${p.qty<1?' · EN FALTA':''}</small></span>${p.qty<1?'<span class="pill bad">Stock 0 · EN FALTA</span>':`<span class="pill warn">Quedan ${p.qty} · mín. ${minOf(p)}</span>`}</button>`).join('')}</div></div>`:'';
  const hoyN=D.filter(x=>x.date===supplyToday()),hero=`<div class="hero"><span class="hbadge">HOY</span><h3>${esc(new Date().toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'}).replace(/^./,c=>c.toUpperCase()))}</h3><p>${hoyN.length} entrega${hoyN.length===1?'':'s'} registrada${hoyN.length===1?'':'s'} hoy (${hoyN.reduce((a,x)=>a+x.qty,0)} unidades)${zero.length?` · ${zero.length} esmalte${zero.length===1?'':'s'} en falta`:''}.</p><div class="hbtn"><button class="hb" data-a="dnew">+ Nueva entrega</button><button class="hb o" data-go="uso" data-q="">Ver En uso</button></div></div>`;
  return `<div class="head"><h2>Resumen</h2><p>Así está el stock de Nel System hoy</p></div>${alerta}
  <div class="stats"><div class="glass stat" style="--c:#C9A24D"><b>${sum('rep')}</b><span>unidades en reposición</span></div><div class="glass stat" style="--c:#2F6BFF"><b>${sum('uso')}</b><span>unidades en uso</span></div><div class="glass stat" style="--c:#2BA57A"><b>${new Set(P.map(p=>key(p))).size}</b><span>esmaltes distintos</span></div><div class="glass stat" style="--c:#E5536B"><b>${low.length}</b><span>con stock bajo o agotado</span></div></div>
@@ -962,23 +963,23 @@ $('#df').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)re
 const plab=p=>`${p.brand} · ${p.name} · ${p.type} · ${SEC[p.section]}`;
 function alertsView(){
  const srt2=(a,b)=>a.brand.localeCompare(b.brand,'es')||a.name.localeCompare(b.name,'es',{numeric:true});
- const act=P.filter(p=>minOf(p)>0).sort((a,b)=>(needs(b)-needs(a))||a.qty-b.qty||srt2(a,b));
+ const act=stockAlertGroups(false).sort((a,b)=>(needs(b)-needs(a))||a.qty-b.qty||srt2(a,b));
  const row=p=>{const k=p.qty<1?['bad','Agotado']:isLow(p)?['warn','Bajo mínimo']:['ok','OK'];
-  return `<div class="mv alr-row"><span class="cn">${bmark(p.brand)}<span><b>${esc(p.name)}</b><small>${esc(p.brand)} · ${esc(p.type)} · ${SEC[p.section]}</small></span></span><span class="alr-st"><span class="pill ${k[0]}">${k[1]}</span><small>Stock ${p.qty} · mínimo ${minOf(p)}</small></span><span><button class="ib" data-a="amin" data-id="${p.id}" title="Cambiar el mínimo" aria-label="Cambiar el mínimo">${ico('edit')}</button><button class="ib d" data-a="aoff" data-id="${p.id}" title="Quitar la alerta" aria-label="Quitar la alerta">${ico('del')}</button></span></div>`};
+  return `<div class="mv alr-row"><span class="cn">${bmark(p.brand)}<span><b>${esc(p.name)}</b><small>${esc(p.brand)} · ${esc(p.type)} · ${SEC[p.section]}</small></span></span><span class="alr-st"><span class="pill ${k[0]}">${k[1]}</span><small>Stock ${p.qty} · mínimo ${minOf(p)}</small></span><span><button class="ib" data-a="amin" data-id="${p.id}" data-key="${esc(p.groupKey)}" title="Cambiar el mínimo" aria-label="Cambiar el mínimo">${ico('edit')}</button><button class="ib d" data-a="aoff" data-id="${p.id}" data-key="${esc(p.groupKey)}" title="Quitar la alerta" aria-label="Quitar la alerta">${ico('del')}</button></span></div>`};
  return `<div class="head hd"><div><h2>Alertas de stock</h2><p>Elegí un esmalte y desde qué cantidad querés que te avise, antes de que llegue a cero.</p></div><div class="xb"><button class="btn wa" data-a="wa"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.9 7L4 20l1.1-4.9A8 8 0 1 1 21 12z"/></svg>Enviar pedido por WhatsApp</button></div></div>
  <div class="glass card"><h3>Nueva alerta</h3><div class="alr-form"><label>Esmalte<input id="an" list="apl" placeholder="Escribí la marca o el nombre…" autocomplete="off"><datalist id="apl">${[...P].sort(srt2).map(p=>`<option value="${esc(plab(p))}">`).join('')}</datalist></label>
  <label>Stock mínimo<input id="am" type="number" min="1" value="3" inputmode="numeric"></label><button class="btn" data-a="aadd">Activar alerta</button></div>
  <p class="sub" style="margin:12px 0 0">Te avisa cuando queden <b>menos</b> unidades que el mínimo. Ej.: mínimo 3 → avisa con 2, 1 o 0. Aparece en rojo en el Resumen y se quita sola cuando repongas.</p><p class="er" id="aer"></p></div>
  <div class="glass card"><h3>Alertas activas <small class="mn">${act.length}</small></h3>${act.map(row).join('')||'<p class="empty">Todavía no configuraste ninguna. También podés tocar la campana de cada esmalte en Reposición.</p>'}</div>`;
 }
-function openMin(p){
+function openMin(p,members=[p]){
  show(`<h2>Stock mínimo</h2><p>${esc(p.name)} · ${esc(p.brand)} (hay ${p.qty})</p>
  <label>Avisarme cuando haya menos de<input id="mm" type="number" min="0" value="${minOf(p)||3}" inputmode="numeric"></label>
  <p class="sub" style="margin:6px 0 0">Ej.: 3 → te avisa con 2, 1 o 0 unidades. Poné 0 para quitar la alerta.</p>
  <div class="row"><button class="btn o" id="no">Cancelar</button><button class="btn" id="ok">Guardar</button></div>`,()=>{
-  const m=Math.max(0,parseInt($('#mm').value)||0),b=writeBatch(db);b.update(doc(db,'polishes',p.id),{min:m});b.commit().catch(fail);toast(m?`Alerta: mínimo ${m}`:'Alerta quitada');dlg.close()});
+  const m=Math.max(0,parseInt($('#mm').value)||0),b=writeBatch(db);members.forEach(x=>b.update(doc(db,'polishes',x.id),{min:m}));b.commit().catch(fail);toast(m?`Alerta: mínimo ${m}`:'Alerta quitada');dlg.close()});
 }
-function alertAct(a,id){
+function alertAct(a,id,groupKey){
  if(a==='wa')return openWhatsApp();
  if(a==='aadd'){const v=$('#an').value.trim(),m=parseInt($('#am').value),er=$('#aer');
   let p=P.find(x=>plab(x)===v);
@@ -986,17 +987,15 @@ function alertAct(a,id){
   if(!p){er.textContent=v?'No encontré ese esmalte o hay varios parecidos. Elegilo de la lista.':'Elegí un esmalte de la lista.';return}
   if(!(m>=1)){er.textContent='El mínimo tiene que ser 1 o más.';return}
   const b=writeBatch(db);b.update(doc(db,'polishes',p.id),{min:m});b.commit().catch(fail);toast(`Alerta activada: ${p.name} (mínimo ${m})`);return}
- const p=P.find(x=>x.id===id);if(!p)return;
- if(a==='aoff'){if(confirm(`¿Quitar la alerta de ${p.name}?`)){const b=writeBatch(db);b.update(doc(db,'polishes',p.id),{min:0});b.commit().catch(fail);toast('Alerta quitada')}return}
- openMin(p);
+ const p=P.find(x=>x.id===id);if(!p)return;const members=groupKey?P.filter(x=>polishKey(x)===groupKey):[p];
+ if(a==='aoff'){if(confirm(`¿Quitar la alerta de ${p.name}?`)){const b=writeBatch(db);members.forEach(x=>b.update(doc(db,'polishes',x.id),{min:0}));b.commit().catch(fail);toast('Alerta quitada')}return}
+ openMin(p,members);
 }
 
 /* ---------- Pedido por WhatsApp ---------- */
 let PU={name:'Gabriela Vicario',phone:''};
 const repStock=p=>P.filter(x=>x.section==='rep'&&norm(x.brand)===norm(p.brand)&&norm(x.name)===norm(p.name)).reduce((a,x)=>a+x.qty,0);
-const waItems=()=>{const seen=new Set();
- return P.filter(needs).filter(p=>p.section==='rep'||repStock(p)<1)
-  .sort((a,b)=>(a.section==='rep'?0:1)-(b.section==='rep'?0:1)).filter(p=>{const k=norm(p.brand)+'|'+norm(p.name);if(seen.has(k))return false;seen.add(k);return true})};
+const waItems=()=>stockAlertGroups().sort((a,b)=>(a.section==='rep'?0:1)-(b.section==='rep'?0:1)||a.brand.localeCompare(b.brand,'es')||a.name.localeCompare(b.name,'es',{numeric:true}));
 function waMsg(name,items){
  const by={};items.forEach(p=>(by[canonPolishBrand(p.brand)]??=[]).push(p));
  const bs=Object.keys(by).sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'})),z=items.filter(p=>p.qty<1).length,l=items.length-z;
@@ -1092,7 +1091,7 @@ $('#main').onclick=e=>{
  if(t.dataset.a==='ximp'){impSec=tab;$('#xf').click();return}
  if(t.dataset.a==='xexp'){exportXls(tab);return}
  if(t.dataset.a==='xtpl'){template(tab);return}
- if(['aadd','amin','aoff','minset','wa'].includes(t.dataset.a)){alertAct(t.dataset.a,t.dataset.id);return}
+ if(['aadd','amin','aoff','minset','wa'].includes(t.dataset.a)){alertAct(t.dataset.a,t.dataset.id,t.dataset.key);return}
  if(['cadd','cren','cdel'].includes(t.dataset.a)){catAct(t.dataset.a,t.dataset.k,t.dataset.v);return}
  if(t.dataset.sc){$('#chips').scrollBy({left:t.dataset.sc*240,behavior:'smooth'});return}
  if(t.dataset.brand){brand=t.dataset.brand;lim=20;render()}
