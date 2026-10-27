@@ -87,6 +87,7 @@ label{display:block;font-size:13.5px;color:var(--mute);margin-top:12px;font-weig
 .er{color:#FFB0BA;font-size:14px;margin-top:12px}.col{display:grid;gap:10px;margin-top:14px}.col .btn{width:100%;text-align:center}
 .login{min-height:100vh;display:grid;place-items:center;padding:20px}.login .glass{padding:34px;width:min(400px,100%)}.login img{height:46px;display:block;margin:0 auto 6px}.login p{text-align:center;color:var(--mute);margin-bottom:6px}
 .login .btn{width:100%;margin-top:18px;padding:12px}.login input{margin-top:4px}
+.login .reset-link{display:block;margin:12px auto 0;padding:4px 8px;border:0;background:none;color:var(--gold);font:600 13px var(--sans);cursor:pointer}.login .reset-link:hover{text-decoration:underline}
 .lb{margin:10px 0 6px!important}.lb b{display:block;font:700 32px/1.1 var(--serif);color:var(--gold)}.lb span{font:500 12px var(--sans);letter-spacing:.18em;text-transform:uppercase;color:#EDF0F8}
 .cnt{color:var(--mute);font-size:14.5px;margin:-4px 2px 10px}
 .brand-breakdown{display:flex;flex-wrap:wrap;gap:7px;margin:-4px 2px 14px;color:var(--mute);font-size:13px}.brand-breakdown[hidden]{display:none}.brand-breakdown b{color:var(--ink)}.brand-breakdown .type-total{padding:5px 10px;border:1px solid var(--line);border-radius:99px;background:rgba(255,255,255,.48)}
