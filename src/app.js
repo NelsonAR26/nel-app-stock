@@ -2,10 +2,11 @@
 const firebaseConfig={apiKey:"AIzaSyA_mffH6yFailmdEM1Y-hqAe0jK5fmVdVc",authDomain:"nel-app-stock.firebaseapp.com",projectId:"nel-app-stock",storageBucket:"nel-app-stock.firebasestorage.app",messagingSenderId:"44332337509",appId:"1:44332337509:web:a7efb5fa433e636378798c"};
 /* ======================================= */
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,signOut} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,sendPasswordResetEmail,signOut,setPersistence,browserSessionPersistence} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {initializeFirestore,memoryLocalCache,collection,doc,onSnapshot,writeBatch,increment,getDocsFromServer,runTransaction,deleteDoc,getDoc,updateDoc,addDoc} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const app=initializeApp(firebaseConfig),auth=getAuth(app);
+const sessionPersistence=setPersistence(auth,browserSessionPersistence);
 const db=initializeFirestore(app,{localCache:memoryLocalCache()});
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -151,7 +152,8 @@ onAuthStateChanged(auth,async u=>{
   if(!owner)profileObserver=onSnapshot(doc(db,'userAccess',u.uid),s=>{if(!s.exists()){signOut(auth);return}const next=s.data(),nextAccess={active:next.active===true,admin:false,permissions:next.active===true?(next.permissions||{}):{}};if(!nextAccess.active){signOut(auth);return}if(JSON.stringify(nextAccess)!==JSON.stringify(window.__nelSectionAccess)){window.__nelVoucherCanCreate=nextAccess.permissions?.vouchers?.create===true;subscribeAuthorizedData(u,nextAccess)}},()=>signOut(auth));
  }catch(e){console.error('No se pudo verificar el acceso.',e);signOut(auth)}
 });
-$('#go').onclick=()=>{const raw=$('#em').value.trim(),identifier=raw.startsWith('@')?`u.${raw.slice(1).toLowerCase()}@nel-app-stock.invalid`:raw.includes('@')?raw:`u.${raw.toLowerCase()}@nel-app-stock.invalid`;signInWithEmailAndPassword(auth,identifier,$('#pw').value).catch(()=>$('#err').textContent='Correo/usuario o contraseña incorrectos.')};
+$('#loginForm').addEventListener('submit',async e=>{e.preventDefault();$('#err').textContent='';const raw=$('#em').value.trim(),identifier=raw.startsWith('@')?'u.'+raw.slice(1).toLowerCase()+'@nel-app-stock.invalid':raw.includes('@')?raw:'u.'+raw.toLowerCase()+'@nel-app-stock.invalid';try{await sessionPersistence;await signInWithEmailAndPassword(auth,identifier,$('#pw').value)}catch{$('#err').textContent='Correo/usuario o contraseña incorrectos.'}});
+$('#resetPassword').onclick=async()=>{const email=$('#em').value.trim();if(!email.includes('@')){$('#err').textContent='Ingresá el correo electrónico de la cuenta.';return}$('#err').textContent='';try{await sendPasswordResetEmail(auth,email);$('#err').textContent='Si el correo está registrado, recibirás un enlace para restablecer la contraseña.'}catch(e){$('#err').textContent=e?.code==='auth/invalid-email'?'Revisá el formato del correo.':'No se pudo enviar el enlace. Revisá el correo e intentá de nuevo.'}};
 $('#out').onclick=()=>signOut(auth);
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js?v=20261026-new-sections-v50');
 
