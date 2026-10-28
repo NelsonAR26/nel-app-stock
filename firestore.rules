@@ -343,7 +343,8 @@ service cloud.firestore {
       allow get, list: if can('polishes', 'read');
       allow create: if can('polishes', 'create') && validPolish(request.resource.data);
       
-      allow update: if isAdmin() || (can('polishes', 'edit') && validPolish(request.resource.data));      allow update: if isAdmin() || (can('polishes', 'edit') && validPolish(request.resource.data)); allow delete: if can('polishes', 'delete');
+      allow update: if isAdmin() || (can('polishes', 'edit') && validPolish(request.resource.data));
+      allow delete: if can('polishes', 'delete');
     }
 
     match /movements/{id} {
