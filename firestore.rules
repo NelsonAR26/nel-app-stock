@@ -251,6 +251,12 @@ service cloud.firestore {
         data.name.size() <= 100 && data.phone is string && data.phone.size() <= 30;
     }
 
+    function validPaymentStaff(data) {
+      return hasOnly(data, ['names', 'updatedAt']) &&
+        hasRequired(data, ['names']) && data.names is list &&
+        data.names.size() <= 100 && optionalTime(data, 'updatedAt');
+    }
+
     function validSupplyCatalog(data) {
       return hasOnly(data, ['areas', 'updatedAt']) &&
         hasRequired(data, ['areas']) && data.areas is list &&
@@ -297,6 +303,7 @@ service cloud.firestore {
         (id == 'catalog' && (can('settings', 'read') || can('polishes', 'read'))) ||
         (id == 'purchaser' && can('settings', 'read')) ||
         (id == 'supplyCatalog' && can('supplyControls', 'read')) ||
+        (id == 'paymentStaff' && can('payments', 'read')) ||
         ((id == 'supplyOrders' || id == 'supplyOrderContact') &&
           can('supplyOrders', 'read')) ||
         (id == 'cityGirlEnUsoMigrationV1' && isAdmin());
@@ -307,6 +314,7 @@ service cloud.firestore {
         (id == 'catalog' && (can('settings', 'create') || can('polishes', 'create') || can('polishes', 'edit'))) ||
         (id == 'purchaser' && can('settings', 'create')) ||
         (id == 'supplyCatalog' && can('supplyControls', 'create')) ||
+        (id == 'paymentStaff' && can('payments', 'create')) ||
         ((id == 'supplyOrders' || id == 'supplyOrderContact') &&
           can('supplyOrders', 'create')) ||
         (id == 'cityGirlEnUsoMigrationV1' && isAdmin());
@@ -318,6 +326,7 @@ service cloud.firestore {
           (can('settings', 'edit') || can('polishes', 'create') || can('polishes', 'edit'))) ||
         (id == 'purchaser' && can('settings', 'edit')) ||
         (id == 'supplyCatalog' && can('supplyControls', 'edit')) ||
+        (id == 'paymentStaff' && (can('payments', 'create') || can('payments', 'edit'))) ||
         ((id == 'supplyOrders' || id == 'supplyOrderContact') &&
           can('supplyOrders', 'edit')) ||
         (id == 'cityGirlEnUsoMigrationV1' && isAdmin());
@@ -327,6 +336,7 @@ service cloud.firestore {
       return (id == 'catalog' && validCatalog(data)) ||
         (id == 'purchaser' && validPurchaser(data)) ||
         (id == 'supplyCatalog' && validSupplyCatalog(data)) ||
+        (id == 'paymentStaff' && validPaymentStaff(data)) ||
         (id == 'supplyOrders' && validSupplyOrders(data)) ||
         (id == 'supplyOrderContact' && validOrderContact(data)) ||
         (id == 'cityGirlEnUsoMigrationV1' && validMigrationMarker(data));
@@ -413,3 +423,4 @@ service cloud.firestore {
     }
   }
 }
+
