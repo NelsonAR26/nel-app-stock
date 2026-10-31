@@ -224,10 +224,10 @@ service cloud.firestore {
     }
 
     function validPayment(data) {
-      return hasOnly(data, ['date', 'name', 'weekly', 'attendance', 'total', 'paid', 'toPay', 'observations', 'createdAt', 'updatedAt']) &&
+      return hasOnly(data, ['date', 'name', 'weekly', 'attendance', 'total', 'paid', 'toPay', 'observation', 'observations', 'createdAt', 'updatedAt']) &&
         hasRequired(data, ['date', 'name', 'weekly', 'attendance', 'total', 'paid', 'toPay', 'createdAt', 'updatedAt']) &&
         validDate(data, 'date') && validText(data, 'name', 100) &&
-        (!('observations' in data) || (data.observations is string && data.observations.size() <= 2000)) &&
+        (!('observation' in data) || (data.observation is string && data.observation.size() <= 500)) && (!('observations' in data) || (data.observations is string && data.observations.size() <= 2000)) &&
         validNumber(data, 'weekly', 0, 100000000) &&
         validNumber(data, 'attendance', 0, 100000000) &&
         validNumber(data, 'total', 0, 200000000) &&
