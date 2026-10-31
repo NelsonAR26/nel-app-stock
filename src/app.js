@@ -25,7 +25,7 @@ const SEC={rep:'Reposición',uso:'En uso'};
 const I={bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8M13.7 20a2 2 0 0 1-3.4 0"/>',plus:'<path d="M12 5v14M5 12h14"/>',minus:'<path d="M5 12h14"/>',edit:'<path d="M4 20h4L19 9l-4-4L4 16v4zM13 7l4 4"/>',img:'<path d="M4 5h16v14H4zM4 16l5-5 4 4 3-3 4 4M9 9h.01"/>',del:'<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'};
 const ico=(k)=>`<svg viewBox="0 0 24 24" aria-hidden="true">${I[k]}</svg>`;
 const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');setTimeout(()=>e.classList.remove('on'),2800)};
-const fail=e=>{console.error(e);const message=e?.code==='permission-denied'?'Firebase rechazó el guardado. Revisá las reglas de Firestore y el permiso Láser de esta cuenta.':e?.code==='unavailable'?'Firestore no está disponible. Revisá la conexión e intentá guardar de nuevo.':'No se pudo guardar. Revisá la conexión y volvé a intentarlo.';toast(message)};
+const fail=e=>{console.error(e);const message=e?.code==='permission-denied'?'Firebase rechazó el guardado. Revisá los permisos de esta sección y las reglas de Firestore.':e?.code==='unavailable'?'Firestore no está disponible. Revisá la conexión e intentá guardar de nuevo.':'No se pudo guardar. Revisá la conexión y volvé a intentarlo.';toast(message)};
 const types=()=>[...new Set([...(C.types||['Común','Semipermanente','Otros']),...P.map(p=>p.type)])];
 const brands=()=>[...new Set([...(C.brands||BR),...P.map(p=>p.brand)].map(canonPolishBrand).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'}));
 const canonBrand=b=>{const n=canonPolishBrand(b);return brands().find(x=>norm(x)===norm(n))||n};
