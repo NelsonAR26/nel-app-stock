@@ -283,7 +283,7 @@ async function sharePaymentsImage(){
 function localDate(){const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
 function openPaymentForm(x=null){
  const weekly=Number(x?.weekly||0),attendance=Number(x?.attendance||0),paid=Number(x?.paid||0),toPay=Number(x?.toPay||0);
- show(`<h2>${x?'Editar pago':'Nuevo pago'}</h2><p>Fecha de pago: <b>${new Date(`${x?.date||localDate()}T12:00:00`).toLocaleDateString('es-AR')}</b></p><label>Nombre y apellido<input id="payName" list="paymentStaffOptions" maxlength="100" value="${esc(x?.name||'')}" placeholder="Nombre y apellido"><datalist id="paymentStaffOptions">${paymentStaff.map(name=>`<option value="${esc(name)}">`).join('')}</datalist><small>Para Masajista, escribí el nombre de quien vino ese día.</small></label><label>Observación (opcional)<textarea id="payObservation" rows="3" maxlength="500" placeholder="Detalle o aclaración">${esc(x?.observation||'')}</textarea></label><label>Monto semanal<input id="payWeekly" type="number" min="0" step="0.01" value="${weekly}"></label><label>Presentismo<input id="payAttendance" type="number" min="0" step="0.01" value="${attendance}"></label><p>Total calculado: <b id="payTotal">${money(weekly+attendance)}</b></p><label>Pago en efectivo<input id="payCash" type="number" min="0" step="0.01" value="${paid}"></label><label>A pagar por transferencia<input id="payTransfer" type="number" min="0" step="0.01" value="${toPay}"></label><p class="sub">Pago + A pagar debe ser igual al total.</p><p class="er" id="payError"></p><div class="row"><button class="btn o" id="no">Cancelar</button><button class="btn" id="ok">Guardar</button></div>`,async()=>{
+ show(`<h2>${x?'Editar pago':'Nuevo pago'}</h2><p>Fecha de pago: <b>${new Date(`${x?.date||localDate()}T12:00:00`).toLocaleDateString('es-AR')}</b></p><label>Nombre y apellido<input id="payName" list="paymentStaffOptions" maxlength="100" value="${esc(x?.name||'')}" placeholder="Nombre y apellido"><datalist id="paymentStaffOptions">${paymentStaff.map(name=>`<option value="${esc(name)}">`).join('')}</datalist><small>Para Masajista, escribí el nombre de quien vino ese día.</small></label><label>Observación (opcional)<textarea id="payObservation" rows="3" maxlength="500" placeholder="Detalle o aclaración">${esc(x?.observation||'')}</textarea></label><label>Monto semanal<input id="payWeekly" type="number" min="0" step="0.01" value="${weekly||''}"></label><label>Presentismo<input id="payAttendance" type="number" min="0" step="0.01" value="${attendance||''}"></label><p>Total calculado: <b id="payTotal">${money(weekly+attendance)}</b></p><label>Pago en efectivo<input id="payCash" type="number" min="0" step="0.01" value="${paid||''}"></label><label>A pagar por transferencia<input id="payTransfer" type="number" min="0" step="0.01" value="${toPay||''}"></label><p class="sub">Pago + A pagar debe ser igual al total.</p><p class="er" id="payError"></p><div class="row"><button class="btn o" id="no">Cancelar</button><button class="btn" id="ok">Guardar</button></div>`,async()=>{
   const name=$('#payName').value.trim(),w=Number($('#payWeekly').value),a=Number($('#payAttendance').value),cash=Number($('#payCash').value),transfer=Number($('#payTransfer').value),sum=w+a;
   if(!name||![w,a,cash,transfer].every(Number.isFinite)||[w,a,cash,transfer].some(v=>v<0)){ $('#payError').textContent='Completá el nombre y montos válidos.';return }
   if(Math.round((cash+transfer)*100)!==Math.round(sum*100)){ $('#payError').textContent='Pago + A pagar debe coincidir con el total.';return }
@@ -336,15 +336,4 @@ function supplyView(){
 const orderItemsSelected=()=>orderGroups.flatMap(g=>g.items.filter(x=>orderSelected.has(x.id)).map(x=>({...x,groupName:g.name})));
 const orderMessage=(name=orderContact.name)=>{
  const items=orderItemsSelected(),lines=[name?`Hola ${name}!`:'Hola!','Nel System te pasa de forma automática el pedido de insumos a comprar:',''];
- orderGroups.forEach(g=>{const selected=g.items.filter(x=>orderSelected.has(x.id));if(!selected.length)return;lines.push(`*${g.name}*`);selected.forEach(x=>lines.push(`• ${x.name}`));lines.push('')});
- return items.length?`${lines.join('\n').trim()}\n\nEnviado por Nel System`:`${name?`Hola ${name}!\n`:''}Marcá los insumos que necesitás para generar el pedido.`;
-};
-function saveOrderState(){
- const b=writeBatch(db);
- b.set(doc(db,'settings','supplyOrders'),{groups:orderGroups,selectedIds:[...orderSelected],updatedAt:Date.now()});
- return b.commit();
-}
-function orderView(){
- if(!orderReady)return '<div class="head"><h2>Pedidos de insumos</h2><p>Cargando lista…</p></div>';
- const selectedCount=orderItemsSelected().length;
- const groups=orderGroups.map(g=>`<section class="glass card"><h3>${esc(g.name)} <small class="mn">${g.items.filter(x=>orderSelected.has(x.id)).length} marcados</small></h3>${g.items.map(x=>`<div class="order-row"><label class="order-p[Truncated]
+ orderGroups.forEach(g=>{const selected=g.items.filter(x=>orderSelected.has(x.id));if(!selected.length)return;lines.push(`*${g.name}*`);selected.forEach(x=[Truncated]
