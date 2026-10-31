@@ -336,4 +336,802 @@ function supplyView(){
 const orderItemsSelected=()=>orderGroups.flatMap(g=>g.items.filter(x=>orderSelected.has(x.id)).map(x=>({...x,groupName:g.name})));
 const orderMessage=(name=orderContact.name)=>{
  const items=orderItemsSelected(),lines=[name?`Hola ${name}!`:'Hola!','Nel System te pasa de forma automática el pedido de insumos a comprar:',''];
- orderGroups.forEach(g=>{const selected=g.items.filter(x=>orderSelected.has(x.id));if(!selected.length)return;lines.push(`*${g.name}*`);selected.forEach(x=[Truncated]
+ orderGroups.forEach(g=>{const selected=g.items.filter(x=>orderSelected.has(x.id));if(!selected.length)return;lines.push(`*${g.name}*`);selected.forEach(x=>lines.push(`• ${x.name}`));lines.push('')});
+ return items.length?`${lines.join('\n').trim()}\n\nEnviado por Nel System`:`${name?`Hola ${name}!\n`:''}Marcá los insumos que necesitás para generar el pedido.`;
+};
+function saveOrderState(){
+ const b=writeBatch(db);
+ b.set(doc(db,'settings','supplyOrders'),{groups:orderGroups,selectedIds:[...orderSelected],updatedAt:Date.now()});
+ return b.commit();
+}
+function orderView(){
+ if(!orderReady)return '<div class="head"><h2>Pedidos de insumos</h2><p>Cargando lista…</p></div>';
+ const selectedCount=orderItemsSelected().length;
+ const groups=orderGroups.map(g=>`<section class="glass card"><h3>${esc(g.name)} <small class="mn">${g.items.filter(x=>orderSelected.has(x.id)).length} marcados</small></h3>${g.items.map(x=>`<div class="order-row"><label class="order-pick"><input type="checkbox" data-order-check="${esc(x.id)}" ${orderSelected.has(x.id)?'checked':''}><span>${esc(x.name)}</span></label><button class="ib d" data-a="orderRemove" data-group="${esc(g.id)}" data-id="${esc(x.id)}" title="Quitar de la lista" aria-label="Quitar ${esc(x.name)}">${ico('del')}</button></div>`).join('')||'<p class="empty">Todavía no hay insumos en este grupo.</p>'}</section>`).join('');
+  return `<div class="head hd"><div><h2>Pedidos de insumos</h2><p>Marcá lo que hace falta comprar; el mensaje se arma agrupado para WhatsApp.</p></div><div class="xb"><button class="btn wa" data-a="orderWhatsApp" ${selectedCount?'':'disabled'}><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.9 7L4 20l1.1-4.9A8 8 0 1 1 21 12z"/></svg>Enviar pedido por WhatsApp</button></div></div>
+ <div class="cards">${groups}</div>
+ <section class="glass card"><h3>Agregar un insumo manual</h3><div class="order-add"><label>Nombre del insumo<input id="orderNewName" maxlength="100" placeholder="Escribí un insumo para agregar"></label><label>Grupo<select id="orderNewGroup">${orderGroups.map(g=>`<option value="${esc(g.id)}">${esc(g.name)}</option>`).join('')}</select></label><button class="btn" data-a="orderAdd">Agregar a la lista</button></div><p class="er" id="orderError"></p></section>
+ <section class="glass card"><h3>Contacto y mensaje de WhatsApp</h3><p class="sub">El botón abre WhatsApp con el pedido listo; el envío se confirma desde WhatsApp.</p>
+ <div class="order-contact"><label>Nombre de quien compra<input id="orderContactName" value="${esc(orderContact.name||'')}" maxlength="80" placeholder="Nombre del encargado"></label><label>WhatsApp (código de país, sin + ni espacios)<input id="orderContactPhone" value="${esc(orderContact.phone||'')}" inputmode="tel" placeholder="Ej.: 5493815551234"></label></div>
+  <div class="row"><button class="btn o" data-a="orderContactSave">Guardar contacto</button><span class="mn" id="orderCount">${selectedCount} insumo${selectedCount===1?'':'s'} marcado${selectedCount===1?'':'s'}</span></div>
+ <label>Vista previa del mensaje<textarea class="order-message" id="orderMessage" readonly>${esc(orderMessage())}</textarea></label>
+  <div class="row"><button class="btn o" data-a="orderCopy">Copiar mensaje</button></div></section>`;
+}
+function refreshOrderPreview(){
+ const name=$('#orderContactName')?.value.trim()||orderContact.name||'',preview=$('#orderMessage');
+ if(preview)preview.value=orderMessage(name);
+ const count=orderItemsSelected().length,label=$('#orderCount'),button=$('#main [data-a="orderWhatsApp"]');
+ if(label)label.textContent=`${count} insumo${count===1?'':'s'} marcado${count===1?'':'s'}`;
+ if(button)button.disabled=!count;
+}
+function saveOrderContact(){
+ const name=$('#orderContactName')?.value.trim()||'',phone=($('#orderContactPhone')?.value||'').replace(/\D/g,'');
+ orderContact={name,phone};
+ const b=writeBatch(db);b.set(doc(db,'settings','supplyOrderContact'),orderContact,{merge:true});
+ return b.commit();
+}
+function addOrderItem(){
+ const name=$('#orderNewName')?.value.trim()||'',group=orderGroups.find(g=>g.id===$('#orderNewGroup')?.value),error=$('#orderError');
+ if(!name||!group){if(error)error.textContent='Escribí el nombre del insumo y elegí un grupo.';return}
+ if(group.items.some(x=>norm(x.name)===norm(name))){if(error)error.textContent=`“${name}” ya está en ${group.name}.`;return}
+ group.items.push({id:freshSupplyId(),name});saveOrderState().then(()=>{toast('Insumo agregado a la lista');render()}).catch(fail);
+}
+function removeOrderItem(groupId,id){
+ const group=orderGroups.find(g=>g.id===groupId),item=group?.items.find(x=>x.id===id);if(!group||!item)return;
+ if(!confirm(`¿Quitar “${item.name}” de la lista de ${group.name}?`))return;
+ group.items=group.items.filter(x=>x.id!==id);orderSelected.delete(id);
+ saveOrderState().then(()=>{toast('Insumo quitado de la lista');render()}).catch(fail);
+}
+function openOrderWhatsApp(){
+ const items=orderItemsSelected();if(!items.length){toast('Marcá al menos un insumo para armar el pedido');return}
+ saveOrderContact().catch(fail);
+ const msg=orderMessage(orderContact.name),phone=orderContact.phone||'',url=`https://wa.me/${phone.length>=10?phone:''}?text=${encodeURIComponent(msg)}`;
+ if(url.length>7500){toast('El pedido es muy largo; quitá algunos insumos');return}
+ window.open(url,'_blank','noopener');toast('Abriendo WhatsApp…');
+}
+async function copyOrderMessage(){
+ const msg=orderMessage($('#orderContactName')?.value.trim()||'');
+ try{await navigator.clipboard.writeText(msg);saveOrderContact().catch(fail);toast('Mensaje copiado')}
+ catch(e){$('#orderMessage')?.select();toast('Seleccioné el texto; copialo con Ctrl+C')}
+}
+function saveSupplyCatalog(areas){const b=writeBatch(db);b.set(doc(db,'settings','supplyCatalog'),{areas,updatedAt:Date.now()});return b.commit()}
+function openSupplyList(){
+ const area=currentSupplyArea(),existing=area.items||[];
+ show(`<h2>Lista de ${esc(area.name)}</h2><p>Escribí un insumo por línea. Quitar un nombre de esta lista no borra los controles históricos.</p><label>Insumos<textarea id="supplyNames" rows="12" placeholder="Limas&#10;Base coat&#10;Aceite de cutículas">${esc(existing.map(x=>x.name).join('\n'))}</textarea></label><p class="er" id="supplyListError"></p><div class="row"><button class="btn o" id="no">Cancelar</button><button class="btn" id="ok">Guardar lista</button></div>`,()=>{
+  const names=[...new Map($('#supplyNames').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).map(x=>[norm(x),x])).values()];
+  if(!names.length){$('#supplyListError').textContent='Agregá al menos un insumo.';return}
+  const old=new Map(existing.map(x=>[norm(x.name),x])),next=names.map(name=>old.get(norm(name))||{id:freshSupplyId(),name});
+  const removed=existing.filter(x=>!next.some(y=>y.id===x.id));
+  if(removed.length&&!confirm(`Vas a quitar ${removed.length} insumo${removed.length===1?'':'s'} de la lista actual. Los controles ya guardados se conservan. ¿Continuar?`))return;
+  const areas=supplyAreas.map(x=>x.id===area.id?{...x,items:next}:x);
+  saveSupplyCatalog(areas).then(()=>{supplyAreas=areas;supplyDrafts[area.id]=null;supplyDirty[area.id]=false;dlg.close();toast('Lista de insumos guardada');if(tab==='insumos')render()}).catch(fail);
+ });
+}
+function openNewSupplyArea(){
+ show(`<h2>Nuevo sector</h2><label>Nombre del sector<input id="supplyAreaName" maxlength="50" placeholder="Ej: Pies"></label><p class="er" id="supplyAreaError"></p><div class="row"><button class="btn o" id="no">Cancelar</button><button class="btn" id="ok">Crear sector</button></div>`,()=>{
+  const name=$('#supplyAreaName').value.trim();
+  if(!name){$('#supplyAreaError').textContent='Escribí un nombre para el sector.';return}
+  if(supplyAreas.some(x=>norm(x.name)===norm(name))){$('#supplyAreaError').textContent='Ya existe un sector con ese nombre.';return}
+  const area={id:freshSupplyId(),name,items:[]},areas=[...supplyAreas,area];
+  saveSupplyCatalog(areas).then(()=>{supplyAreas=areas;supplyAreaId=area.id;dlg.close();toast('Sector creado');render()}).catch(fail);
+ });
+}
+function saveSupplyControl(){
+ const area=currentSupplyArea(),draft=supplyDraftFor(area),date=$('#supplyDate')?.value||'',reviewer=$('#supplyReviewer')?.value.trim()||'',note=$('#supplyNote')?.value.trim()||'';
+ const items=area.items.map(x=>{const input=document.querySelector(`[data-supply-qty="${x.id}"]`),raw=input?.value??'';return {id:x.id,name:x.name,qty:raw===''?NaN:Number(raw),present:draft.items[x.id]?.present}});
+ const error=$('#supplyError');
+ if(!date){error.textContent='Elegí la fecha del control.';return}
+ if(!reviewer){error.textContent='Indicá quién hizo el control.';return}
+ if(items.some(x=>!Number.isInteger(x.qty)||x.qty<0)){error.textContent='Completá una cantidad entera igual o mayor que cero para cada insumo.';return}
+ if(items.some(x=>typeof x.present!=='boolean')){error.textContent='Marcá “Está” o “Falta” para cada insumo.';return}
+ const record={areaId:area.id,areaName:area.name,date,reviewer,note,items,createdAt:Date.now()},ref=doc(collection(db,'supplyControls')),b=writeBatch(db);
+ b.set(ref,record);supplyDirty[area.id]=true;
+ b.commit().then(()=>{supplyChecks=[{id:ref.id,...record},...supplyChecks];supplyDrafts[area.id]=null;supplyDirty[area.id]=false;toast('Control guardado en el historial');render()}).catch(fail);
+}
+function resumen(){
+ const sum=s=>P.filter(p=>p.section===s).reduce((a,p)=>a+p.qty,0),low=P.filter(p=>p.qty<1||(minOf(p)>0?p.qty<minOf(p):(p.section!=='uso'&&p.qty<=2))).sort((a,b)=>a.qty-b.qty);
+ const grp=f=>{const m={};P.forEach(p=>m[f(p)]=(m[f(p)]||0)+p.qty);return Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([label,v])=>({label,v}))};
+ const bl=grp(p=>p.brand),tl=grp(p=>p.type),tm=tl[0]?.v||1;
+ const zero=stockAlertGroups().sort((a,b)=>(a.qty<1?0:1)-(b.qty<1?0:1)||a.brand.localeCompare(b.brand,'es')||a.name.localeCompare(b.name,'es',{numeric:true})),z0=zero.filter(p=>p.qty<1).length,zl=zero.length-z0;
+ const alerta=zero.length?`<div class="glass alert" role="alert"><div class="ah"><span class="ai" aria-hidden="true"><svg class="siren-icon" viewBox="0 0 96 96"><path class="siren-rays" d="m15 25-8-8m23-6-2-10m-23 34-10-3"/><path class="siren-base" d="M17 61h62l5 19q1 6-6 7H18q-7-1-6-7z"/><path class="siren-dome" d="M23 61V45q0-24 25-24t25 24v16z"/><path class="siren-gloss" d="M31 54V44q0-13 11-16"/><path class="siren-triangle" d="M63 15 91 59H49z"/><path class="siren-mark" d="M70 29v12m0 8v1"/></svg></span><div><h3>Esmaltes en falta</h3><p>${z0?`${z0} sin stock`:''}${z0&&zl?' · ':''}${zl?`${zl} bajo el mínimo`:''}. La alerta se quita sola cuando repongas.</p></div><button class="btn wa" data-a="wa"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.9 7L4 20l1.1-4.9A8 8 0 1 1 21 12z"/></svg>Enviar por WhatsApp</button></div><div class="al">${zero.map(p=>`<button class="ar ${p.qty<1?'missing':''}" data-go="${p.section}" data-q="${esc(p.name)}" title="Ir a ${SEC[p.section]}">${bmark(p.brand)}<span class="at"><b>${esc(p.name)}</b><small>${esc(p.brand)} · ${esc(p.type)} · ${p.sections.map(s=>SEC[s]).join(' · ')}${p.qty<1?' · EN FALTA':''}</small></span>${p.qty<1?'<span class="pill bad">Stock 0 · EN FALTA</span>':`<span class="pill warn">Quedan ${p.qty} · mín. ${minOf(p)}</span>`}</button>`).join('')}</div></div>`:'';
+ const hoyN=D.filter(x=>x.date===supplyToday()),hero=`<div class="hero"><span class="hbadge">HOY</span><h3>${esc(new Date().toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'}).replace(/^./,c=>c.toUpperCase()))}</h3><p>${hoyN.length} entrega${hoyN.length===1?'':'s'} registrada${hoyN.length===1?'':'s'} hoy (${hoyN.reduce((a,x)=>a+x.qty,0)} unidades)${zero.length?` · ${zero.length} esmalte${zero.length===1?'':'s'} en falta`:''}.</p><div class="hbtn"><button class="hb" data-a="dnew">+ Nueva entrega</button><button class="hb o" data-go="uso" data-q="">Ver En uso</button></div></div>`;
+ return `<div class="head"><h2>Resumen</h2><p>Así está el stock de Nel System hoy</p></div>${alerta}
+ <div class="stats"><div class="glass stat" style="--c:#C9A24D"><b>${sum('rep')}</b><span>unidades en reposición</span></div><div class="glass stat" style="--c:#2F6BFF"><b>${sum('uso')}</b><span>unidades en uso</span></div><div class="glass stat" style="--c:#2BA57A"><b>${new Set(P.map(p=>key(p))).size}</b><span>esmaltes distintos</span></div><div class="glass stat" style="--c:#E5536B"><b>${low.length}</b><span>con stock bajo o agotado</span></div></div>
+ <div class="cards dashboard-primary">${hero}<div class="glass card"><h3>Unidades por marca</h3>${bl.length?`<div class="dn">${donut(bl)}${legend(bl)}</div>`:'<p class="empty">Cargá tus primeros esmaltes.</p>'}</div>
+ <div class="glass card"><h3>Movimientos · 14 días</h3>${cols()}</div></div>
+ <div class="cards"><div class="glass card"><h3>Por tipo de esmalte</h3>${tl.map(x=>bar({name:x.label,n:x.v,max:tm},'t')).join('')||'<p class="empty">Sin datos todavía.</p>'}</div>
+ <div class="glass card"><h3>Para reponer pronto</h3>${low.slice(0,8).map(p=>`<div class="mv"><span>${esc(p.name)} <small>${esc(p.brand)} · ${SEC[p.section]}</small></span><span class="pill ${st(p)[0]}">${p.qty} · ${st(p)[1]}</span>${minOf(p)>0?`<small class="mn">mín. ${minOf(p)}</small>`:''}</div>`).join('')||'<p class="empty">Todo con stock suficiente ✓</p>'}</div></div>`;
+}
+function shell(){
+ const items=P.filter(p=>p.section===tab),bs=[...new Set(items.map(p=>p.brand))].sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'}));
+ if(brand!=='Todas'&&!bs.includes(brand))brand='Todas';
+ const n=b=>items.filter(p=>b==='Todas'||p.brand===b).reduce((a,p)=>a+p.qty,0);
+ const brandPicker=tab==='uso'?`<select id="brandFilter" aria-label="Filtrar por marca"><option value="Todas" ${brand==='Todas'?'selected':''}>Todas las marcas</option>${bs.map(b=>`<option value="${esc(b)}" ${brand===b?'selected':''}>${esc(b)} · ${items.filter(p=>p.brand===b).length}</option>`).join('')}</select>`:'';
+ const brandCarousel=tab==='uso'?'':`<div class="car"><button class="arr" data-sc="-1" aria-label="Marcas anteriores">‹</button><div class="chips" id="chips">${['Todas',...bs].map(b=>{const all=b==='Todas',u=n(b),r=items.filter(p=>all||p.brand===b).length;return `<button class="bchip ${brand===b?'on':''}" data-brand="${esc(b)}">${all?'<span class="cm">✦</span>':bmark(b)}<span class="ct"><b>${all?'Todas las marcas':esc(b)}</b><small>${u} unidades · ${r} ref.</small></span></button>`}).join('')}</div><button class="arr" data-sc="1" aria-label="Marcas siguientes">›</button></div>`;
+ const stateOptions=tab==='uso'?[['Todos','Todos los estados'],['ok','En uso'],['bad','Sin stock de uso']]:[['Todos','Todos los estados'],['ok','Disponible'],['warn','Stock bajo'],['bad','Agotado']];
+   return `<div class="head hd"><div><h2>${tab==='rep'?'Stock de reposición':'Esmaltes en uso'}</h2><p>${tab==='rep'?'Lo que tenés en el depósito':'Lista del local, ordenada por marca. Los agotados quedan visibles y muestran si hay stock para reponer'} · ${items.length} referencias</p></div><div class="xb">${tab==='uso'?'<button class="btn o" data-a="undoUseImport">Borrar carga Excel</button>':''}<button class="btn o" data-a="ximp">⬆ Importar Excel</button><button class="btn o" data-a="xexp">⬇ Exportar</button><button class="btn o" data-a="xtpl">Plantilla</button></div></div>
+  ${brandCarousel}<div class="tools">${brandPicker}<input id="q" type="search" placeholder="Buscar esmalte o marca…" value="${esc(q)}">
+ <select id="ty" aria-label="Tipo"><option value="Todos">Todos los tipos</option>${types().map(t=>`<option ${t===type?'selected':''}>${esc(t)}</option>`).join('')}</select>
+  <select id="stt" aria-label="Estado">${stateOptions.map(([v,l])=>`<option value="${v}" ${stat===v?'selected':''}>${l}</option>`).join('')}</select>
+ <select id="ing" aria-label="Fecha de ingreso">${[['Todos','Cualquier ingreso'],['7','Últimos 7 días'],['30','Últimos 30 días'],['90','Últimos 90 días']].map(([v,l])=>`<option value="${v}" ${ing===v?'selected':''}>${l}</option>`).join('')}</select>
+ <select id="srt" aria-label="Ordenar">${[['new','Más recientes'],['old','Más antiguos'],['az','Nombre A → Z'],['za','Nombre Z → A'],['brand','Marca A → Z'],['brandza','Marca Z → A'],['hi','Mayor stock'],['lo','Menor stock']].map(([v,l])=>`<option value="${v}" ${srt===v?'selected':''}>${l}</option>`).join('')}</select>
+ <button class="btn o" data-a="clr">Limpiar</button></div><p class="cnt" id="cnt"></p><div class="brand-breakdown" id="brandBreakdown" hidden></div><div class="glass tbw" id="tbl"></div>`;
+}
+function list(){
+ const since=ing==='Todos'?0:Date.now()-ing*864e5,S={new:(a,b)=>b.createdAt-a.createdAt,old:(a,b)=>a.createdAt-b.createdAt,az:(a,b)=>a.name.localeCompare(b.name,'es'),za:(a,b)=>b.name.localeCompare(a.name,'es'),brandza:(a,b)=>b.brand.localeCompare(a.brand,'es')||a.name.localeCompare(b.name,'es'),brand:(a,b)=>a.brand.localeCompare(b.brand,'es')||a.name.localeCompare(b.name,'es'),hi:(a,b)=>b.qty-a.qty,lo:(a,b)=>a.qty-b.qty};
+ const inUse=tab==='uso',state=p=>inUse?(p.qty>0?'ok':'bad'):st(p)[0];
+ const f=P.filter(p=>p.section===tab&&(brand==='Todas'||p.brand===brand)&&(type==='Todos'||p.type===type)&&(stat==='Todos'||state(p)===stat)&&p.createdAt>=since&&norm(p.name+' '+p.brand).includes(norm(q))).sort(S[srt]||S.brand);
+ const active=f.filter(p=>p.qty>0).length,empty=f.length-active,total=f.reduce((a,p)=>a+p.qty,0);
+ $('#cnt').textContent=inUse?`${f.length} esmalte${f.length===1?'':'s'} · ${active} en uso · ${empty} sin stock de uso · ${total} unidades`:`${f.length} esmalte${f.length===1?'':'s'} · ${total} unidades`;
+ const breakdown=$('#brandBreakdown');
+ if(brand!=='Todas'){
+  const byType=new Map();P.filter(p=>p.section===tab&&norm(p.brand)===norm(brand)).forEach(p=>{const label=p.type,k=norm(label),entry=byType.get(k)||{label,refs:0,qty:0};entry.refs++;entry.qty+=Number(p.qty)||0;byType.set(k,entry)});
+  breakdown.hidden=false;breakdown.innerHTML=`<span>En ${esc(brand)} · cantidades por tipo:</span>${[...byType.values()].sort((a,b)=>a.label.localeCompare(b.label,'es',{sensitivity:'base'})).map(x=>`<span class="type-total"><b>${esc(x.label)}:</b> ${x.qty} un. (${x.refs} esmalte${x.refs===1?'':'s'})</span>`).join('')}`;
+ }else{breakdown.hidden=true;breakdown.innerHTML=''}
+ const rows=f.slice(0,lim).map(p=>{
+  if(inUse){
+   const r=repoFor(p),rq=Number(r?.qty)||0;
+   const repLabel=r?(rq>0?`${rq} disponible${rq===1?'':'s'} en Reposición`:'Sin stock en Reposición'):'No figura en Reposición';
+   return `<tr class="${p.qty<1?'row-missing':''}"><td><div class="nm">${bmark(p.brand)}<b>${esc(p.name)}</b></div><td data-l="Marca">${esc(p.brand)}<td data-l="Tipo"><span class="tag" style="--c:${hue(p.type)}">${esc(p.type)}</span><td data-l="Estado"><span class="use-state ${p.qty>0?'on':'empty'}">Estado: ${p.qty>0?'EN USO':'SIN STOCK DE USO'}</span><small class="use-rep" style="display:block;margin-top:5px">${p.qty} unidad${p.qty===1?'':'es'} en el local</small><td data-l="Reposición"><span class="use-rep">${repLabel}</span>${rq>0?`<button class="btn o use-action" data-a="replenish" data-id="${p.id}">Pasar a En uso</button>`:''}<td class="ac"><div class="use-actions"><button class="ib" data-a="edit" data-id="${p.id}" title="Editar" aria-label="Editar">${ico('edit')}</button><button class="ib" data-a="plus" data-id="${p.id}" title="Agregar stock en uso" aria-label="Agregar stock en uso">${ico('plus')}</button><button class="ib" data-a="out" data-id="${p.id}" title="Retirar una cantidad" aria-label="Retirar una cantidad" ${p.qty<1?'disabled':''}>${ico('minus')}</button><button class="ib d" data-a="del" data-id="${p.id}" title="Eliminar registro" aria-label="Eliminar registro">${ico('del')}</button></div></td></tr>`;
+  }
+  return `<tr><td><div class="nm">${bmark(p.brand)}<b>${esc(p.name)}</b></div><td data-l="Marca">${esc(p.brand)}<td data-l="Tipo"><span class="tag" style="--c:${hue(p.type)}">${esc(p.type)}</span><td data-l="Stock"><span class="pill ${st(p)[0]}">${p.qty} · ${st(p)[1]}</span>${minOf(p)>0?`<small class="mn">mín. ${minOf(p)}</small>`:''}<td data-l="Ingreso">${fmt(p.createdAt)}<td data-l="Última salida">${fmt(p.lastOut)}<td class="ac"><div class="use-actions"><button class="ib${minOf(p)>0?' on':''}" data-a="minset" data-id="${p.id}" title="Stock mínimo / alerta" aria-label="Stock mínimo">${ico('bell')}</button>${p.qty>0?`<button class="btn o use-action" data-a="putToUse" data-id="${p.id}">Pasar a En uso</button>`:''}<button class="ib" data-a="edit" data-id="${p.id}" title="Editar" aria-label="Editar">${ico('edit')}</button><button class="ib" data-a="plus" data-id="${p.id}" title="Agregar stock" aria-label="Agregar stock">${ico('plus')}</button><button class="ib" data-a="out" data-id="${p.id}" title="Retirar o pasar a En uso" aria-label="Retirar o pasar a En uso" ${p.qty<1?'disabled':''}>${ico('minus')}</button><button class="ib d" data-a="del" data-id="${p.id}" title="Eliminar" aria-label="Eliminar">${ico('del')}</button></div></td></tr>`;
+ }).join('');
+ $('#tbl').innerHTML=f.length?`<table class="tb"><thead><tr>${inUse?'<th>Esmalte<th>Marca<th>Tipo<th>Estado<th>Disponibilidad en Reposición<th>Acciones':'<th>Esmalte<th>Marca<th>Tipo<th>Stock<th>Ingreso<th>Última salida<th>'}</tr></thead><tbody>${rows}</tbody></table>${f.length>lim?`<button class="btn o more" data-more>Ver más (${f.length-lim})</button>`:''}`:'<div class="empty">No hay esmaltes acá todavía.<br>Tocá “Nuevo esmalte” o importá tu Excel.</div>';
+}
+function report(){
+ const since=days?Date.now()-days*864e5:0,outs=M.filter(m=>m.kind==='out'&&m.section==='rep'&&!m.adj&&m.at>=since),map={};
+ P.filter(p=>p.section==='rep').forEach(p=>map[p.id]={name:p.name,brand:p.brand,n:0});
+ outs.forEach(m=>{const k=map[m.pid]?m.pid:key(m);(map[k]??={name:m.name,brand:m.brand,n:0}).n+=m.qty});
+ const r=Object.values(map).sort((a,b)=>b.n-a.n),max=r[0]?.n||1;r.forEach(x=>x.max=max);
+ const top=r.filter(x=>x.n>0).slice(0,6),low=[...r].reverse().slice(0,6),bm={};r.forEach(x=>bm[x.brand]=(bm[x.brand]||0)+x.n);
+ const bl=Object.entries(bm).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]).map(([label,v])=>({label,v}));
+ return `<div class="head"><h2>Informe de uso</h2><p>Según los retiros hechos desde Reposición</p></div>
+ <div class="tools">${[[30,'Últimos 30 días'],[90,'Últimos 90 días'],[0,'Todo el tiempo']].map(([d,l])=>`<button class="chip ${days===d?'on':''}" data-days="${d}">${l}</button>`).join('')}</div>
+ <div class="cards"><div class="glass card"><h3>Los que más salen</h3>${top.map(x=>bar(x,'')).join('')||'<p class="empty">Aún no hay retiros en este período.</p>'}</div>
+ <div class="glass card"><h3>Los que menos salen</h3>${low.map(x=>bar(x,'l')).join('')||'<p class="empty">Cargá esmaltes en Reposición.</p>'}</div></div>
+ <div class="cards"><div class="glass card"><h3>Retiros por marca</h3>${bl.length?`<div class="dn">${donut(bl)}${legend(bl)}</div>`:'<p class="empty">Sin retiros en este período.</p>'}</div>
+ <div class="glass card"><h3>Últimos movimientos</h3>${[...M].sort((a,b)=>b.at-a.at).slice(0,10).map(m=>`<div class="mv"><span class="${m.kind==='in'?'in':'outc'}">${m.kind==='in'?'+':'−'}${m.qty} · ${esc(m.name)}${m.adj?' <small>(ajuste)</small>':''} <small>${esc(m.brand)} · ${SEC[m.section]}</small></span><small>${fmt(m.at)}</small></div>`).join('')||'<p class="empty">Todavía no hay movimientos.</p>'}</div></div>`;
+}
+
+/* ---------- Diálogos ---------- */
+const dlg=$('#dlg');
+const show=(h,ok)=>{dlg.innerHTML=h;dlg.showModal();const n=$('#no');if(n)n.onclick=()=>dlg.close();if(ok&&$('#ok'))$('#ok').onclick=ok};
+const brandSel=sel=>`<label>Marca<select id="b">${brands().map(b=>`<option ${b===sel?'selected':''}>${esc(b)}</option>`).join('')}<option value="__n">＋ Nueva marca…</option></select></label><label id="nbw" hidden>Nombre de la marca<input id="nb" placeholder="Ej: Essie"></label>`;
+const pickBrand=()=>$('#b').value==='__n'?canonBrand($('#nb').value):$('#b').value;
+const bindBrand=()=>{$('#b').onchange=()=>{$('#nbw').hidden=$('#b').value!=='__n'};$('#b').onchange()};
+const saveCat=(k,list)=>{const b=writeBatch(db);b.set(doc(db,'settings','catalog'),{[k]:list},{merge:true});return b.commit()};
+const ensureBrand=b=>{if(b&&!brands().some(x=>norm(x)===norm(b)))saveCat('brands',[...brands(),b]).catch(fail)};
+function openAdd(){
+ show(`<h2>Nuevo esmalte</h2><label>Nombre<input id="n" placeholder="Ej: Big Apple Red"></label>${brandSel(brand!=='Todas'?brand:'')}
+ <label>Tipo<select id="t">${types().map(t=>`<option>${esc(t)}</option>`).join('')}</select></label>
+ <label>Cantidad<input id="c" type="number" min="1" value="1" inputmode="numeric"></label>
+ <label>Stock mínimo (opcional)<input id="mn" type="number" min="0" value="0" inputmode="numeric"></label><p class="sub" style="margin:4px 0 0">Si querés una alerta en el Resumen cuando queden menos de esa cantidad. 0 = sin alerta.</p>
+ <label>Se guarda en<select id="s"><option value="rep" ${tab!=='uso'?'selected':''}>Reposición (depósito)</option><option value="uso" ${tab==='uso'?'selected':''}>En uso (local)</option></select></label>
+ <p class="er" id="er"></p><div class="row"><button class="btn o" id="no">Cancelar</button><button class="btn" id="ok">Guardar</button></div>`,()=>{
+  const name=$('#n').value.trim(),b=pickBrand().trim(),t=$('#t').value,c=parseInt($('#c').value)||0,s=$('#s').value;
+  if(!name||!b||c<1){$('#er').textContent='Completá nombre, marca y una cantidad mayor a 0.';return}
+   const ex=P.find(p=>p.section===s&&polishKey(p)===polishKey({name,brand:b,type:t}));
+   if(ex){$('#er').innerHTML=`Este esmalte (<b>${esc(name)}</b> · <b>${esc(b)}</b>) ya está cargado en el sistema, en ${SEC[s]} con <b>${ex.qty}</b> unidades. Para sumar stock usá el botón “+” de esa fila.`;return}
+  ensureBrand(b);addStock({name,brand:b,type:t,qty:c,section:s,min:Math.max(0,parseInt($('#mn').value)||0)});dlg.close()});
+ bindBrand();
+}
+function openEdit(p){
+ show(`<h2>Editar esmalte</h2><p>${SEC[p.section]} · cargado el ${fmt(p.createdAt)}</p>
+ <label>Nombre<input id="n" value="${esc(p.name)}"></label>${brandSel(p.brand)}
+ <label>Tipo<select id="t">${types().map(t=>`<option ${t===p.type?'selected':''}>${esc(t)}</option>`).join('')}</select></label>
+ <label>Cantidad en stock<input id="c" type="number" min="0" value="${p.qty}" inputmode="numeric"></label>
+ <label>Stock mínimo para la alerta<input id="mn" type="number" min="0" value="${minOf(p)}" inputmode="numeric"></label><p class="sub" style="margin:4px 0 0">Te avisa en el Resumen cuando queden menos de esa cantidad. 0 = sin alerta.</p>
+ <p class="er" id="er"></p><div class="row"><button class="btn o" id="no">Cancelar</button><button class="btn" id="ok">Guardar cambios</button></div>`,()=>{
+  const name=$('#n').value.trim(),b=pickBrand().trim(),t=$('#t').value,c=parseInt($('#c').value);
+  if(!name||!b||isNaN(c)||c<0){$('#er').textContent='Completá nombre y marca, y poné una cantidad válida (0 o más).';return}
+   const ex=P.find(x=>x.id!==p.id&&x.section===p.section&&polishKey(x)===polishKey({name,brand:b,type:t}));
+  if(ex){$('#er').innerHTML=`Ya existe <b>${esc(ex.name)}</b> (${esc(ex.brand)} · ${esc(ex.type)}) en ${SEC[p.section]} con ${ex.qty} unidades.`;return}
+  ensureBrand(b);const bt=writeBatch(db),upd={name,brand:b,type:t,min:Math.max(0,parseInt($('#mn').value)||0)};
+  if(c!==p.qty){upd.qty=c;bt.set(doc(collection(db,'movements')),mv({...p,name,brand:b,type:t},c>p.qty?'in':'out',Math.abs(c-p.qty),Date.now(),{adj:true}))}
+  bt.update(doc(db,'polishes',p.id),upd);bt.commit().catch(fail);toast('Cambios guardados');dlg.close()});
+ bindBrand();
+}
+function openOut(p){
+ show(`<h2>Retirar stock</h2><p>${esc(p.name)} · ${esc(p.brand)} (hay ${p.qty})</p>
+ <label>Cantidad a retirar<input id="c" type="number" min="1" max="${p.qty}" value="1" inputmode="numeric"></label>
+ ${p.section==='rep'?`<label style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input id="u" type="checkbox" checked style="width:auto;margin:0"> Sumar a “En uso”</label>`:''}
+ <div class="row"><button class="btn o" id="no">Cancelar</button><button class="btn" id="ok">Confirmar</button></div>`,()=>{withdraw(p,parseInt($('#c').value)||0,$('#u')?.checked);dlg.close()});
+}
+function replenishFromRepo(p){
+ const r=repoFor(p);
+ if(!r||r.qty<1){toast('No hay stock disponible en Reposición');return}
+ openOut(r);
+}
+function openPlus(p){
+ show(`<h2>Agregar stock</h2><p>${esc(p.name)} · ${esc(p.brand)} (hay ${p.qty})</p>
+ <label>Cantidad a agregar<input id="c" type="number" min="1" value="1" inputmode="numeric"></label>
+ <div class="row"><button class="btn o" id="no">Cancelar</button><button class="btn" id="ok">Confirmar</button></div>`,()=>{plusN(p,parseInt($('#c').value)||0);dlg.close()});
+}
+
+/* ---------- Excel ---------- */
+function openExcel(){
+ show(`<h2>Excel</h2><p>Cargá o descargá tu stock en una planilla.</p><div class="col">
+ <button class="btn" id="e1">Importar desde Excel</button><button class="btn o" id="e2">Exportar todo a Excel</button><button class="btn o" id="e3">Descargar plantilla vacía</button><button class="btn o" id="no">Cerrar</button></div>`);
+ $('#e1').onclick=()=>{impSec=null;dlg.close();$('#xf').click()};$('#e2').onclick=()=>{exportXls();dlg.close()};$('#e3').onclick=()=>{template();dlg.close()};
+}
+const SC={ok:['FFDDF5EA','FF1E7A53'],warn:['FFFCF0D4','FF8A6112'],bad:['FFFBE1E5','FFA3303F']};
+const fill=c=>({type:'pattern',pattern:'solid',fgColor:{argb:c}});
+function sheetBase(wb,name,title,cols){
+ const ws=wb.addWorksheet(name,{views:[{state:'frozen',ySplit:4,showGridLines:false}],properties:{tabColor:{argb:'FFE3C08D'}}}),n=cols.length,last=String.fromCharCode(64+n);
+ cols.forEach((c,i)=>{ws.getColumn(i+1).width=c[1]});
+ ws.mergeCells(`A1:${last}1`);ws.mergeCells(`A2:${last}2`);
+ for(let r=1;r<=2;r++)for(let c=1;c<=n;c++)ws.getCell(r,c).fill=fill('FF273046');
+ const t=ws.getCell('A1');t.value='NEL SYSTEM';t.font={name:'Georgia',size:24,bold:true,color:{argb:'FFFFFFFF'}};t.alignment={vertical:'middle',horizontal:'left',indent:1};ws.getRow(1).height=44;
+ const u=ws.getCell('A2');u.value=`Nel System · by Nelson Carrizo   |   ${title}   |   ${new Date().toLocaleDateString('es-AR')}`;u.font={name:'Calibri',size:10,italic:true,color:{argb:'FFE3C08D'}};u.alignment={vertical:'middle',horizontal:'left',indent:1};ws.getRow(2).height=24;
+ ws.getRow(3).height=8;const h=ws.getRow(4);h.height=28;
+ cols.forEach((c,i)=>{const x=h.getCell(i+1);x.value=c[0];x.font={name:'Calibri',bold:true,size:11,color:{argb:'FF273046'}};x.fill=fill('FFE3C08D');x.alignment={vertical:'middle',horizontal:c[2],indent:c[2]==='left'?1:0};x.border={bottom:{style:'medium',color:{argb:'FF273046'}}}});
+ ws.autoFilter={from:'A4',to:`${last}4`};return ws;
+}
+function addRow(ws,vals,i,cols){
+ const r=ws.addRow(vals);r.height=23;
+ cols.forEach((c,j)=>{const x=r.getCell(j+1);x.font={name:'Calibri',size:11,color:{argb:'FF273046'}};x.fill=fill(i%2?'FFF6F2EA':'FFFFFFFF');x.alignment={vertical:'middle',horizontal:c[2],indent:c[2]==='left'?1:0};x.border={bottom:{style:'thin',color:{argb:'FFE6E1D8'}}}});return r;
+}
+async function saveWb(wb,name){
+ const buf=await wb.xlsx.writeBuffer(),a=document.createElement('a');
+ a.href=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+}
+async function exportXls(only){
+ if(!window.ExcelJS){toast('Necesitás conexión a internet para exportar');return}
+ try{
+ const wb=new ExcelJS.Workbook();wb.creator='Nel System by Nelson Carrizo';
+ const cs=[['Nombre',32,'left'],['Marca',18,'left'],['Tipo',20,'left'],['Cantidad',12,'center'],['Estado',16,'center'],['Fecha de ingreso',18,'center'],['Última salida',18,'center']];
+ (only?[only]:['rep','uso']).forEach(sec=>{
+  const ws=sheetBase(wb,SEC[sec],`Stock de ${SEC[sec].toLowerCase()}`,cs);
+  P.filter(p=>p.section===sec).sort((a,b)=>a.brand.localeCompare(b.brand,'es')||a.name.localeCompare(b.name,'es')).forEach((p,i)=>{
+   const k=st(p)[0],r=addRow(ws,[p.name,p.brand,p.type,p.qty,st(p)[1],fmt(p.createdAt),fmt(p.lastOut)],i,cs);
+   [4,5].forEach(j=>{const x=r.getCell(j);x.fill=fill(SC[k][0]);x.font={name:'Calibri',size:11,bold:true,color:{argb:SC[k][1]}}})});
+ });
+ if(!only){const mc=[['Fecha',16,'center'],['Movimiento',15,'center'],['Esmalte',32,'left'],['Marca',18,'left'],['Tipo',20,'left'],['Cantidad',12,'center'],['Sección',16,'left']],wm=sheetBase(wb,'Movimientos','Historial de movimientos',mc);
+ [...M].sort((a,b)=>b.at-a.at).forEach((m,i)=>{const r=addRow(wm,[fmt(m.at),m.kind==='in'?'Ingreso':'Retiro',m.name,m.brand,m.type,m.qty,SEC[m.section]],i,mc);r.getCell(2).font={name:'Calibri',size:11,bold:true,color:{argb:m.kind==='in'?'FF1E7A53':'FFA3303F'}}});
+ }
+ await saveWb(wb,`Nel System-${only==='uso'?'en-uso':only==='rep'?'reposicion':'stock'}-${new Date().toISOString().slice(0,10)}.xlsx`);toast('Excel descargado');
+ }catch(e){console.error(e);toast('No se pudo crear el Excel')}
+}
+async function template(sec){
+ if(!window.ExcelJS){toast('Necesitás conexión a internet para descargar la plantilla');return}
+ try{
+ const wb=new ExcelJS.Workbook(),cs=[['Nombre',34,'left'],['Marca',20,'left'],['Tipo',22,'left'],['Cantidad',14,'center']],ws=sheetBase(wb,sec?SEC[sec]:'Esmaltes',`Plantilla${sec?' · '+SEC[sec]:''} · completá desde la fila 5`,cs);
+ for(let i=0;i<80;i++){const r=addRow(ws,['','','',''],i,cs),n=r.number;
+  ws.getCell(n,3).dataValidation={type:'list',allowBlank:true,formulae:['"'+types().join(',')+'"']};
+  ws.getCell(n,4).dataValidation={type:'whole',operator:'greaterThanOrEqual',allowBlank:true,formulae:[0]}}
+ await saveWb(wb,sec==='uso'?'Plantilla-en-uso-Nel System.xlsx':sec==='rep'?'Plantilla-reposicion-Nel System.xlsx':'Plantilla-esmaltes-Nel System.xlsx');
+ }catch(e){console.error(e);toast('No se pudo crear la plantilla')}
+}
+async function readXls(f){
+ const wb=XLSX.read(await f.arrayBuffer()),out=[],N=['nombre','esmalte','name','producto'];
+ wb.SheetNames.forEach(sn=>{const ns=norm(sn);if(ns.includes('movim'))return;const sec=ns.includes('uso')?'uso':ns.includes('repos')?'rep':null;
+  const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:''}),hi=rows.findIndex(r=>r.some(c=>N.includes(norm(c))));if(hi<0)return;
+  const H=rows[hi].map(norm),col=n=>H.findIndex(h=>n.includes(h));
+  const iN=col(N),iB=col(['marca','brand']),iT=col(['tipo','type']),iQ=col(['cantidad','cant','stock','qty','unidades']);
+  rows.slice(hi+1).forEach(a=>{const name=String(a[iN]??'').trim();if(!name)return;
+   out.push({name,brand:canonBrand(String(iB>=0?a[iB]:'').trim()||'Sin marca'),type:canonType(iT>=0?a[iT]:''),qty:Math.max(0,parseInt(iQ>=0?a[iQ]:0)||0),sec})})});
+ return out;
+}
+function undoableUseImportGroups(){
+ const grouped=new Map(),byPid=new Map();
+ M.forEach(m=>{if(!m.pid)return;if(!byPid.has(m.pid))byPid.set(m.pid,[]);byPid.get(m.pid).push(m)});
+ P.filter(p=>p.section==='uso'&&Number.isFinite(Number(p.createdAt))).forEach(p=>{
+  const at=Number(p.createdAt),batchId=p.importBatchId||null,k=batchId?`id:${batchId}`:`legacy:${at}`;
+  if(!grouped.has(k))grouped.set(k,{key:k,at,batchId,all:[]});
+  grouped.get(k).all.push(p);
+ });
+ const groups=[];
+ grouped.forEach(g=>{
+  const items=[];
+  g.all.forEach(p=>{
+   const related=byPid.get(p.id)||[],source=related.filter(m=>m.section==='uso'&&m.kind==='in'&&!m.adj&&Number(m.at)===g.at&&(!g.batchId||m.importBatchId===g.batchId));
+   if(source.length!==1||related.length!==1)return;
+   const m=source[0];
+   if(Number(p.qty)!==Number(m.qty)||Number(p.lastIn)!==g.at||p.lastOut!=null||p.name!==m.name||p.brand!==m.brand||p.type!==m.type)return;
+   items.push({p,m});
+  });
+  if(items.length)groups.push({...g,items,excluded:g.all.length-items.length});
+ });
+ return groups.sort((a,b)=>b.at-a.at);
+}
+function openUndoUseImport(){
+ if(!movementReady){show('<h2>Historial cargando</h2><p>Esperá un momento mientras se consulta el historial de movimientos y volvé a abrir esta opción.</p><div class="row"><button class="btn o" id="no">Cerrar</button></div>');return}
+ const groups=undoableUseImportGroups();
+ if(!groups.length){show('<h2>No encontré una carga para deshacer</h2><p>No se borró nada. La carga anterior puede no estar disponible si sus registros se modificaron o no tienen un movimiento de ingreso identificable.</p><div class="row"><button class="btn o" id="no">Cerrar</button></div>');return}
+ show(`<h2>Elegí la carga de En uso</h2><p>${groups.some(g=>!g.batchId)?'Los lotes antiguos se detectan por fecha y movimientos, no por un ID de importación; podrían coincidir con altas manuales. Revisá la lista y cancelá si no reconocés la carga.':'La app registró estos lotes de importación.'}</p><div class="col">${groups.map((g,i)=>`<button class="btn o" data-undo-pick="${i}">${g.batchId?'Carga registrada':'Posible carga anterior'} · ${new Date(g.at).toLocaleString('es-AR',{dateStyle:'short',timeStyle:'medium'})} · ${g.items.length} esmalte${g.items.length===1?'':'s'}${g.excluded?` · ${g.excluded} fuera del borrado` : ''}</button>`).join('')}</div><div class="row"><button class="btn o" id="no">Cancelar</button></div>`);
+ dlg.querySelectorAll('[data-undo-pick]').forEach(b=>b.onclick=()=>previewUndoUseImport(groups[Number(b.dataset.undoPick)]));
+}
+function previewUndoUseImport(g){
+ show(`<h2>Revisá antes de borrar</h2><p>${new Date(g.at).toLocaleString('es-AR',{dateStyle:'short',timeStyle:'medium'})} · <b>${g.items.length}</b> esmalte${g.items.length===1?'':'s'} en En uso.</p><p>Se eliminarán las fichas listadas y sus movimientos de ingreso. Confirmá que correspondan a la planilla. Los registros preexistentes omitidos por Excel no se tocan; los que muestran movimientos o cambios posteriores quedan excluidos.${g.excluded?` ${g.excluded} registro${g.excluded===1?'':'s'} del grupo no se borrará${g.excluded===1?'':'n'} porque no coincide con el ingreso original.`:''}</p><div style="max-height:38vh;overflow:auto;border:1px solid var(--line);border-radius:14px;padding:8px 12px">${g.items.map(({p})=>`<div class="mv"><span>${esc(p.brand)} · ${esc(p.name)} <small>(${esc(p.type)})</small></span><b>${p.qty}</b></div>`).join('')}</div><div class="row"><button class="btn o" id="no">Cancelar</button><button class="btn" id="ok">Borrar ${g.items.length} esmalte${g.items.length===1?'':'s'}</button></div>`,()=>deleteUseImportBatch(g));
+}
+async function deleteUseImportBatch(selected){
+ const button=$('#ok');if(button){button.disabled=true;button.textContent='Borrando…'}
+ const fresh=undoableUseImportGroups().find(g=>g.key===selected.key);
+ const same=fresh&&fresh.items.length===selected.items.length&&fresh.items.every(x=>selected.items.some(y=>y.p.id===x.p.id&&y.m.id===x.m.id));
+ if(!same){dlg.close();toast('La lista cambió. Volvé a abrir la opción y revisá el grupo actualizado.');return}
+ let removed=0;
+ try{
+  for(let i=0;i<fresh.items.length;i+=200){
+   const chunk=fresh.items.slice(i,i+200),b=writeBatch(db);
+   chunk.forEach(({p,m})=>{b.delete(doc(db,'polishes',p.id));b.delete(doc(db,'movements',m.id))});
+   await b.commit();removed+=chunk.length;
+  }
+  dlg.close();toast(`Se borraron ${removed} esmalte${removed===1?'':'s'} de esa carga y sus movimientos`);
+ }catch(e){
+  console.error(e);dlg.close();toast(removed?`Se borraron ${removed}. Volvé a revisar para terminar la carga.`:'No se pudo borrar la carga. Revisá la conexión.');
+ }
+}
+async function importRows(rows,defSec,mode){
+ const seen=new Set(),now=Date.now(),batchId=doc(collection(db,'importBatches')).id,ops=[],res={add:0,upd:0,skip:0,dup:0,conflicts:[],ambiguous:0};
+ rows.forEach(raw=>{const r={...raw,brand:canonBrand(raw.brand)},sec=r.sec||defSec,k=sec+'|'+polishKey(r);if(seen.has(k)){res.skip++;res.dup++;res.conflicts.push({name:r.name,brand:r.brand,why:'repetido dentro del archivo'});return}seen.add(k);
+  const matches=P.filter(p=>p.section===sec&&polishKey(p)===polishKey(r));
+  if(matches.length>1){res.skip++;res.dup++;res.ambiguous++;res.conflicts.push({name:r.name,brand:r.brand,why:'ya hay más de una ficha en el sistema'});return}
+  const ex=matches[0];if(ex&&mode==='skip'){res.skip++;res.dup++;res.conflicts.push({name:r.name,brand:r.brand,why:`ya existe en ${SEC[sec]}`});return}ops.push({r,sec,ex})});
+ try{for(let i=0;i<ops.length;i+=200){const b=writeBatch(db);
+  ops.slice(i,i+200).forEach(({r,sec,ex})=>{let id,delta,adj={};
+   if(ex){id=ex.id;delta=mode==='set'?r.qty-ex.qty:r.qty;adj=mode==='set'?{adj:true}:{};res.upd++;
+    b.update(doc(db,'polishes',id),mode==='set'?{qty:r.qty,...(delta>0?{lastIn:now}:delta<0?{lastOut:now}:{})}:{qty:increment(r.qty),lastIn:now})}
+   else{const d=doc(collection(db,'polishes'));id=d.id;delta=r.qty;res.add++;b.set(d,{name:r.name,brand:r.brand,type:r.type,section:sec,qty:r.qty,createdAt:now,lastIn:now,lastOut:null,...(sec==='uso'?{importBatchId:batchId}:{})})}
+   if(delta)b.set(doc(collection(db,'movements')),{pid:id,name:r.name,brand:r.brand,type:r.type,section:sec,kind:delta>0?'in':'out',qty:Math.abs(delta),at:now,...adj,...(!ex&&sec==='uso'?{importBatchId:batchId}:{})})});
+  await b.commit()}
+  const summary=`Nuevos: ${res.add} · Actualizados: ${res.upd} · Omitidos: ${res.skip}`;
+  if(res.conflicts.length){const lines=res.conflicts.slice(0,40).map(x=>`<div class="mv"><span><b>${esc(x.name)}</b> · ${esc(x.brand)}<small style="display:block">${esc(x.why)}</small></span></div>`).join('');show(`<h2>Se evitaron esmaltes repetidos</h2><p>${summary}. Revisá estos casos; ${res.conflicts.length>40?`se muestran 40 de ${res.conflicts.length}`:'no se crearon fichas nuevas para ellos'}.</p><div style="max-height:48vh;overflow:auto">${lines}</div><div class="row"><button class="btn o" id="no">Cerrar</button></div>`)}
+  else toast(summary)}catch(e){fail(e)}
+}
+let impSec=null;
+function openImport(rows){
+ const fx=impSec;if(fx)rows=rows.filter(r=>!r.sec||r.sec===fx);
+ show(`<h2>Importar desde Excel</h2><p>Se leyeron <b>${rows.length}</b> filas${fx?` para <b>${SEC[fx]}</b>`:''}.</p>
+ ${fx?'':`<label>Cargar en (si la hoja no dice “Reposición” o “En uso”)<select id="s"><option value="rep" ${tab!=='uso'?'selected':''}>Reposición (depósito)</option><option value="uso" ${tab==='uso'?'selected':''}>En uso (local)</option></select></label>`}
+  <label>Si el esmalte ya está cargado<select id="m"><option value="skip">No tocarlo (evita duplicados)</option><option value="set">Reemplazar su cantidad por la del Excel</option><option value="add">Sumar la cantidad del Excel</option></select></label>
+  ${fx==='uso'||rows.some(r=>r.sec==='uso')?'<p class="sub">“Borrar carga Excel” puede quitar filas nuevas creadas con “No tocarlo”. Las sumas o reemplazos en esmaltes que ya existían no se pueden revertir con seguridad.</p>':''}
+ <div class="row"><button class="btn o" id="no">Cancelar</button><button class="btn" id="ok">Importar</button></div>`,()=>{importRows(rows,fx||$('#s').value,$('#m').value);dlg.close()});
+}
+document.addEventListener('click',e=>{if(e.target.closest('#xl'))openExcel()});
+$('#xf').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
+ try{const r=await readXls(f);r.length?openImport(r):toast('No encontré datos. Revisá los títulos: Nombre, Marca, Tipo, Cantidad')}catch(x){toast('No se pudo leer el archivo')}};
+
+/* ---------- Catálogo (tipos y marcas) ---------- */
+const FLD={types:'type',brands:'brand'},NAME={types:'tipo',brands:'marca'};
+const isCityGirlBrand=b=>['city girl','city girls'].includes(norm(b));
+function cityGirlGroups(items=P){
+ const map=new Map();
+ items.filter(p=>p.section==='uso'&&isCityGirlBrand(p.sourceBrand||p.brand)).forEach(p=>{
+  const k=`${p.section}|${polishKey(p)}`;
+  if(!map.has(k))map.set(k,{key:k,section:p.section,items:[]});
+  map.get(k).items.push(p);
+ });
+ return [...map.values()];
+}
+async function migrateCityGirlEnUso(){
+ if(cityGirlMigrationRunning||!auth.currentUser||!navigator.onLine)return;
+ cityGirlMigrationRunning=true;
+ const marker=doc(db,'settings','cityGirlEnUsoMigrationV1');
+ try{
+  const claimed=await runTransaction(db,async tx=>{
+   const s=await tx.get(marker),d=s.exists()?s.data():{},now=Date.now();
+   if(d.status==='done')return false;
+   if(d.status==='running'&&now-(Number(d.startedAt)||0)<600000)return false;
+   tx.set(marker,{status:'running',startedAt:now},{merge:true});return true;
+  });
+  if(!claimed)return;
+  const snap=await getDocsFromServer(collection(db,'polishes')),items=snap.docs.map(d=>({id:d.id,...d.data(),sourceBrand:d.data().brand}));
+  const groups=cityGirlGroups(items),ops=[],migrationAt=Date.now();
+  let removed=0,renamed=0,affected=0;
+  groups.forEach(g=>{
+   const ordered=[...g.items].sort((a,b)=>{
+    const at=x=>Math.max(Number(x.createdAt)||0,Number(x.lastIn)||0,Number(x.lastOut)||0);
+    return at(b)-at(a)||(Number(b.createdAt)||0)-(Number(a.createdAt)||0)||String(a.id).localeCompare(String(b.id));
+   });
+   const keeper=ordered[0],needsMerge=g.items.length>1||(keeper.sourceBrand||keeper.brand)!=='City Girl';
+   if(!needsMerge)return;
+   affected++;
+   g.items.forEach(p=>{
+    const original={...p,brand:p.sourceBrand||p.brand};delete original.sourceBrand;
+    ops.push({kind:'archive',id:`citygirl-use-v1-${p.id}`,data:{sourceId:p.id,migration:'cityGirlEnUsoMigrationV1',archivedAt:migrationAt,reason:p.id===keeper.id?'copia de seguridad de la ficha conservada':'ficha duplicada retirada',original}});
+   });
+   if((keeper.sourceBrand||keeper.brand)!=='City Girl'){ops.push({kind:'update',id:keeper.id,data:{brand:'City Girl'}});renamed++}
+   g.items.filter(p=>p.id!==keeper.id).forEach(p=>{ops.push({kind:'delete',id:p.id});removed++});
+  });
+  for(let i=0;i<ops.length;i+=400){
+   const b=writeBatch(db);
+   ops.slice(i,i+400).forEach(op=>{
+    if(op.kind==='archive')b.set(doc(db,'polishDuplicateArchive',op.id),op.data);
+    else if(op.kind==='update')b.update(doc(db,'polishes',op.id),op.data);
+    else b.delete(doc(db,'polishes',op.id));
+   });
+   await b.commit();
+  }
+  const done=writeBatch(db);done.set(marker,{status:'done',completedAt:Date.now(),groups:affected,archived:ops.filter(x=>x.kind==='archive').length,removed,renamed,keepPolicy:'ficha con actividad más reciente; cantidad sin sumar',archiveCollection:'polishDuplicateArchive'},{merge:true});await done.commit();
+  if(removed||renamed)toast(`En uso unificado: ${removed} repetidas retiradas; se conservaron ${renamed} marcas normalizadas y se guardó respaldo.`);
+ }catch(e){
+  console.error(e);
+  try{const b=writeBatch(db);b.set(marker,{status:'pending',lastAttemptAt:Date.now()},{merge:true});await b.commit()}catch{}
+  toast('No se completó la unificación de City Girl. Los registros quitados se respaldan antes; se volverá a intentar con conexión.');
+ }finally{cityGirlMigrationRunning=false}
+}
+function catalog(){
+ const box=(k,title,sub,ls)=>`<div class="glass card"><h3>${title}</h3><p class="sub">${sub}</p>
+ <div class="addrow"><input id="ni-${k}" placeholder="Nuevo ${NAME[k]}…" maxlength="30"><button class="btn" data-a="cadd" data-k="${k}">Agregar</button></div>
+ ${ls.map(v=>{const n=P.filter(p=>p[FLD[k]]===v).length,lock=k==='types'&&v==='Otros';return `<div class="mv"><span class="cn">${k==='brands'?bmark(v):`<span class="mono" style="--c:${hue(v)}">${esc(v.slice(0,2).toUpperCase())}</span>`}<span><b>${esc(v)}</b><small>${n} esmalte${n===1?'':'s'}</small></span></span><span>${lock?'<small>Por defecto</small>':`${k==='brands'?`<button class="ib" data-a="clogo" data-v="${esc(v)}" title="Logo" aria-label="Logo de ${esc(v)}">${ico('img')}</button>`:''}<button class="ib" data-a="cren" data-k="${k}" data-v="${esc(v)}" title="Editar" aria-label="Editar ${esc(v)}">${ico('edit')}</button><button class="ib d" data-a="cdel" data-k="${k}" data-v="${esc(v)}" title="Eliminar" aria-label="Eliminar ${esc(v)}">${ico('del')}</button>`}</span></div>`}).join('')||'<p class="empty">Todavía no hay nada.</p>'}</div>`;
+  return `<div class="head"><h2>Catálogo</h2><p>Administrá tus tipos y marcas: editá nombres, agregá o eliminá.</p></div><div class="cards">${box('types','Tipos de esmalte','Aparecen al cargar y al filtrar.',types())}${box('brands','Marcas','Ordenadas de la A a la Z.',brands())}</div>`;
+}
+function moveField(f,old,nw){
+ const own=P.filter(p=>p[f]===old),clash=own.find(p=>P.some(x=>x[f]!==old&&x.section===p.section&&key({...p,[f]:nw})===key(x)));
+ if(clash){toast(`No se puede: ya existe "${clash.name}" con ese ${f==='type'?'tipo':'nombre de marca'}`);return false}
+ for(let i=0;i<own.length;i+=400){const b=writeBatch(db);own.slice(i,i+400).forEach(p=>b.update(doc(db,'polishes',p.id),{[f]:nw}));b.commit().catch(fail)}
+ return true;
+}
+function catAct(a,k,v){
+ const f=FLD[k],ls=k==='types'?types():brands();
+ if(a==='cadd'){const el=$('#ni-'+k),n=el.value.trim().replace(/^./,c=>c.toUpperCase());if(!n)return;
+  if(ls.some(x=>norm(x)===norm(n))){toast(`Ya existe ese ${NAME[k]}`);return}
+  saveCat(k,[...ls,n]).catch(fail);toast('Agregado');return}
+ if(a==='cren')return show(`<h2>Editar ${NAME[k]}</h2><p>El cambio se aplica a todos los esmaltes que lo usan.</p><label>Nombre<input id="rn" value="${esc(v)}" maxlength="30"></label><p class="er" id="er"></p><div class="row"><button class="btn o" id="no">Cancelar</button><button class="btn" id="ok">Guardar</button></div>`,()=>{
+  const n=$('#rn').value.trim();if(!n){$('#er').textContent='Escribí un nombre.';return}
+  if(norm(n)!==norm(v)&&ls.some(x=>norm(x)===norm(n))){$('#er').textContent=`Ya existe un ${NAME[k]} con ese nombre.`;return}
+  if(!moveField(f,v,n))return;saveCat(k,ls.map(x=>x===v?n:x)).catch(fail);toast('Guardado');dlg.close()});
+ if(a==='cdel'){const n=P.filter(p=>p[f]===v).length;
+  if(k==='brands'&&n){toast(`"${v}" tiene ${n} esmaltes. Cambiales la marca o eliminalos antes.`);return}
+  if(!confirm(k==='types'&&n?`${n} esmaltes tienen el tipo "${v}" y pasarán a "Otros". ¿Eliminar el tipo?`:`¿Eliminar ${NAME[k]} "${v}"?`))return;
+  if(k==='types'&&n&&!moveField(f,v,'Otros'))return;
+  saveCat(k,ls.filter(x=>x!==v)).catch(fail);toast('Eliminado')}
+}
+
+/* ---------- Logos de marcas ---------- */
+let logoFor=null;
+const setLogo=(b,url)=>{const bt=writeBatch(db);bt.set(doc(db,'settings','catalog'),{logos:{[norm(b)]:url}},{merge:true});bt.commit().catch(fail);toast(url?'Logo guardado':'Logo quitado')};
+function openLogo(b){
+ show(`<h2>Logo de ${esc(b)}</h2>${logoOf(b)?`<div class="lp"><img src="${logoOf(b)}" alt=""></div>`:'<p>Esta marca todavía no tiene logo.</p>'}<p>Subí una imagen (PNG o JPG) con el logo oscuro sobre fondo blanco o transparente.</p>
+ <div class="col"><button class="btn" id="l1">Subir imagen</button>${logoOf(b)?'<button class="btn o" id="l2">Quitar logo</button>':''}<button class="btn o" id="no">Cerrar</button></div>`);
+ $('#l1').onclick=()=>{logoFor=b;dlg.close();$('#lf').click()};const q=$('#l2');if(q)q.onclick=()=>{setLogo(b,'');dlg.close()};
+}
+$('#lf').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f||!logoFor)return;
+ try{const bmp=await createImageBitmap(f),k=Math.min(1,360/bmp.width,150/bmp.height),w=Math.max(1,Math.round(bmp.width*k)),h=Math.max(1,Math.round(bmp.height*k)),cv=document.createElement('canvas');cv.width=w;cv.height=h;
+  const x=cv.getContext('2d');x.drawImage(bmp,0,0,w,h);const d=x.getImageData(0,0,w,h),a=d.data;
+  for(let i=0;i<a.length;i+=4){const m=Math.min(a[i],a[i+1],a[i+2]);a[i+3]=Math.min(a[i+3],Math.max(0,Math.min(255,(250-m)*255/160)))}
+  x.putImageData(d,0,0);setLogo(logoFor,cv.toDataURL('image/png'))}catch(x){toast('No se pudo leer la imagen')}};
+
+/* ---------- Registro de Entregas ---------- */
+let D=[];const dl={q:'',sec:'Todos',per:'Todos',rng:'all',from:'',to:'',lim:60};
+const SECD=['Manos','Pies','Esmalte'];
+const tcase=v=>String(v).trim().replace(/\s+/g,' ').toLowerCase().replace(/(^|\s)\S/g,c=>c.toUpperCase());
+const dsectors=()=>[...new Set([...SECD,...D.map(x=>x.sector).filter(Boolean)])];
+const dpeople=()=>[...new Set(D.map(x=>x.to).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'}));
+const dprods=()=>[...new Set(D.map(x=>x.product).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'}));
+const canonIn=(list,v,fmtNew)=>{const t=String(v||'').trim().replace(/\s+/g,' ');return !t?'':list.find(x=>norm(x)===norm(t))||(fmtNew?fmtNew(t):t)};
+const dshift=n=>{const d=new Date(supplyToday()+'T12:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
+const dlabel=s=>{const t=new Date(s+'T12:00:00').toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});return t.charAt(0).toUpperCase()+t.slice(1)};
+const dfmt=s=>String(s||'').split('-').reverse().join('/');
+function dFiltered(){
+ const t=supplyToday(),lo=dl.from||(dl.rng==='hoy'?t:dl.rng==='7'?dshift(-6):dl.rng==='30'?dshift(-29):dl.rng==='mes'?t.slice(0,8)+'01':''),hi=dl.to||'';
+ return D.filter(x=>(!lo||x.date>=lo)&&(!hi||x.date<=hi)&&(dl.sec==='Todos'||norm(x.sector)===norm(dl.sec))&&(dl.per==='Todos'||norm(x.to)===norm(dl.per))&&norm([x.product,x.to,x.sector,x.note].join(' ')).includes(norm(dl.q)))
+  .sort((a,b)=>b.date.localeCompare(a.date)||(Number(a.createdAt)||0)-(Number(b.createdAt)||0));
+}
+function dBody(){
+ const f=dFiltered(),u=f.reduce((a,x)=>a+x.qty,0),pp=new Set(f.map(x=>norm(x.to)).filter(Boolean)).size,bp={};
+ f.forEach(x=>{bp[x.product]=(bp[x.product]||0)+x.qty});const top=Object.entries(bp).sort((a,b)=>b[1]-a[1])[0],tot={};
+ f.forEach(x=>{const o=tot[x.date]??={n:0,u:0};o.n++;o.u+=x.qty});
+ const g=new Map();f.slice(0,dl.lim).forEach(x=>{if(!g.has(x.date))g.set(x.date,[]);g.get(x.date).push(x)});
+ const stats=`<div class="stats"><div class="glass stat" style="--c:#C9A24D"><b>${f.length}</b><span>entregas</span></div><div class="glass stat" style="--c:#2BA57A"><b>${u}</b><span>unidades entregadas</span></div><div class="glass stat" style="--c:#E0708F"><b>${pp}</b><span>personas</span></div><div class="glass stat" style="--c:#2F6BFF"><b class="sm">${top?esc(top[0]):'—'}</b><span>${top?`producto más entregado · ${top[1]} u.`:'producto más entregado'}</span></div></div>`;
+ const groups=[...g].map(([d,it])=>`<section class="glass dgrp"><div class="dgh"><b>${dlabel(d)}</b><small>${tot[d].n} entrega${tot[d].n===1?'':'s'} · ${tot[d].u} unidades</small></div>${it.map(x=>`<div class="dr"><span class="dq">${x.qty}</span><div class="dp"><b>${esc(x.product)}</b>${x.note?`<small>${esc(x.note)}</small>`:''}</div><div class="dpers">${x.to?`<span class="mono" style="--c:${hue(x.to)}">${esc(x.to.slice(0,1).toUpperCase())}</span><span>${esc(x.to)}</span>`:'<small>Sin nombre</small>'}</div><span class="tag" style="--c:${hue(x.sector||'-')}">${esc(x.sector||'Sin sector')}</span><div class="ua"><button class="ib" data-a="dedit" data-id="${x.id}" title="Editar" aria-label="Editar entrega">${ico('edit')}</button><button class="ib d" data-a="ddel" data-id="${x.id}" title="Eliminar" aria-label="Eliminar entrega">${ico('del')}</button></div></div>`).join('')}</section>`).join('');
+ return stats+(groups||'<div class="glass card empty">Todavía no hay entregas en este filtro.<br>Tocá “Nueva entrega” o importá tu Excel de reposiciones.</div>')+(f.length>dl.lim?`<button class="btn o more" data-a="dmore">Ver más (${f.length-dl.lim})</button>`:'');
+}
+function claimRate(n,total){return total?`${Math.round(n/total*100)}%`:'0%'}
+const claimDateLabel=s=>s?new Date(`${s}T12:00:00`).toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'}):'—';
+function claimsForPeriod(){
+ const today=supplyToday(),dow=new Date(`${today}T12:00:00`).getDay(),mondayOffset=(dow+6)%7;
+ const start=claimPeriod==='day'?today:claimPeriod==='week'?dshift(-mondayOffset):claimPeriod==='month'?`${today.slice(0,7)}-01`:'';
+ const end=claimPeriod==='day'?today:claimPeriod==='week'?dshift(6-mondayOffset):today;
+ return claimRecords.filter(x=>(!start||x.claimDate>=start)&&x.claimDate<=end);
+}
+function claimVisibleRecords(records){
+ return records.filter(x=>norm([x.client,x.manicurist,x.area,x.observations].join(' ')).includes(norm(claimQuery))).sort((a,b)=>String(b.claimDate||'').localeCompare(String(a.claimDate||''))||(Number(b.createdAt)||0)-(Number(a.createdAt)||0));
+}
+function claimRows(records){
+ const f=claimVisibleRecords(records);
+ return f.map(x=>`<div class="mv claim-row"><label class="claim-select" title="Incluir en el reporte de WhatsApp"><input type="checkbox" data-claim-select="${esc(x.id)}" aria-label="Incluir reclamo de ${esc(x.client)} en el reporte" ${claimSelected.has(x.id)?'checked':''}></label><span><b>${esc(x.client)}</b><small>Servicio ${claimDateLabel(x.serviceDate)} · Reclamo ${claimDateLabel(x.claimDate)}</small></span><span class="pill">${esc(x.area)}</span><span class="pill">${esc(x.manicurist)}</span><span class="sub">${esc(x.observations)}</span><span class="use-actions"><button class="ib" data-a="claimEdit" data-id="${esc(x.id)}" title="Editar reclamo" aria-label="Editar reclamo">${ico('edit')}</button><button class="ib d" data-a="claimDelete" data-id="${esc(x.id)}" title="Eliminar reclamo" aria-label="Eliminar reclamo">${ico('del')}</button></span></div>`).join('')||'<p class="empty">No hay reclamos en este período o filtro.</p>';
+}
+function claimReportMessage(records){
+ const sentDate=claimDateLabel(supplyToday());
+ const cases=records.map((x,i)=>`*RECLAMO ${i+1}*\n*Clienta:* — ${String(x.client||'').trim()||'Sin nombre cargado'}\n• *Fecha del servicio:* ${claimDateLabel(x.serviceDate)}\n• *Fecha del reclamo:* ${claimDateLabel(x.claimDate)}\n• *Manicura responsable:* ${String(x.manicurist||'').trim()||'No especificada'}\n• *Área del servicio:* ${String(x.area||'').trim()||'No especificada'}\n• *Observación y respuesta brindada:*\n${String(x.observations||'').trim()||'Sin detalle cargado.'}`).join('\n\n──────────────\n\n');
+ return `*REPORTE DE RECLAMOS | NEL SYSTEM*\n*Fecha de envío:* ${sentDate}\n*Cantidad de casos:* ${records.length}\n\n${cases}\n\n_Enviado por Nel System._`;
+}
+function updateClaimShareControls(){
+ const selectedCount=claimRecords.filter(x=>claimSelected.has(x.id)).length,visibleCount=claimVisibleRecords(claimsForPeriod()).length;
+ const select=$('#main [data-a="claimSelectVisible"]'),clear=$('#main [data-a="claimClearSelection"]'),send=$('#main [data-a="claimWhatsApp"]'),status=$('#claimSelectionStatus');
+ if(select){select.textContent=`Seleccionar visibles (${visibleCount})`;select.disabled=!visibleCount}
+ if(clear)clear.disabled=!selectedCount;
+ if(send){send.textContent=`Preparar WhatsApp (${selectedCount})`;send.disabled=!selectedCount}
+ if(status)status.textContent=selectedCount?`${selectedCount} reclamo${selectedCount===1?' seleccionado':'s seleccionados'} para el reporte.`:'Todavía no seleccionaste reclamos.';
+}
+function claimsView(){
+ const period=claimsForPeriod(),total=period.length,hand=period.filter(x=>x.area==='Manos').length,foot=period.filter(x=>x.area==='Pies').length,by={};
+ claimRecords.forEach(x=>{const name=x.manicurist?.trim()||'Sin manicura',k=norm(name);if(k&&!by[k])by[k]={name,total:0,h:0,f:0}});
+ period.forEach(x=>{const name=x.manicurist||'Sin manicura',k=norm(name),g=by[k]??={name,total:0,h:0,f:0};g.total++;if(x.area==='Manos')g.h++;if(x.area==='Pies')g.f++});
+ const hiddenKeys=new Set(claimHiddenNames.map(norm));
+ const rank=Object.values(by).filter(x=>!hiddenKeys.has(norm(x.name))).sort((a,b)=>b.total-a.total||a.name.localeCompare(b.name,'es',{sensitivity:'base'}));
+ const periodLabel={day:'hoy',week:'esta semana',month:'este mes',all:'todo el período'}[claimPeriod];
+ const max=rank[0]?.total||1,min=rank.length?rank[rank.length-1].total:0;
+ const circumference=264;
+ const chart=rank.length?`<div class="claim-rank-grid">${rank.map((x,i)=>{const tone=max>min?(x.total===max?'high':x.total===min?'low':'mid'):'mid',position=rank.findIndex(y=>y.total===x.total)+1,share=total?x.total/total:0,handsShare=x.total?x.h/x.total:0,feetShare=x.total?x.f/x.total:0,handsArc=circumference*handsShare,feetArc=circumference*feetShare;return `<article class="claim-person-card ${tone==='high'?'high':tone==='low'?'low':''}"><div class="claim-person-head"><span class="claim-place">${position}°</span><div><div class="claim-person-name">${esc(x.name)}</div><span class="claim-person-tag">${tone==='high'?'Más reclamos · rojo':tone==='low'?'Menos reclamos · verde':`Puesto ${position}`}</span></div><button class="claim-hide" data-a="claimHide" data-name="${esc(x.name)}" title="Ocultar esta manicura del ranking" aria-label="Ocultar ${esc(x.name)} del ranking">×</button></div><div class="claim-donuts"><div class="claim-donut-box"><svg class="claim-donut" viewBox="0 0 120 120" role="img" aria-label="${esc(x.name)}: ${x.total} reclamos, ${claimRate(x.total,total)} del total"><circle class="claim-donut-track" cx="60" cy="60" r="42"/><circle class="claim-donut-value ${tone}" cx="60" cy="60" r="42" stroke-dasharray="${(circumference*share).toFixed(2)} ${circumference}"/><text class="claim-donut-count" x="60" y="57">${x.total}</text><text class="claim-donut-caption" x="60" y="75">reclamos</text></svg><div class="claim-donut-label">${claimRate(x.total,total)} del total</div><div class="claim-donut-note">Volumen comparativo</div></div><div class="claim-donut-box"><svg class="claim-donut" viewBox="0 0 120 120" role="img" aria-label="${esc(x.name)}: Manos ${x.h}, Pies ${x.f}"><circle class="claim-donut-track" cx="60" cy="60" r="42"/><circle class="claim-donut-value hands" cx="60" cy="60" r="42" stroke-dasharray="${handsArc.toFixed(2)} ${circumference}"/><circle class="claim-donut-value feet" cx="60" cy="60" r="42" stroke-dasharray="${feetArc.toFixed(2)} ${circumference}" stroke-dashoffset="-${handsArc.toFixed(2)}"/><text class="claim-donut-count" x="60" y="57">${x.total}</text><text class="claim-donut-caption" x="60" y="75">Manos / Pies</text></svg><div class="claim-donut-label">Tipos de servicio</div><div class="claim-donut-note">Distribución personal</div></div></div><div class="claim-person-meta"><div class="claim-meta-item"><b><i class="claim-dot" style="background:#8b6bea"></i> ${x.h} · ${claimRate(x.h,x.total)}</b>Reclamos de Manos</div><div class="claim-meta-item"><b><i class="claim-dot" style="background:#38a9a1"></i> ${x.f} · ${claimRate(x.f,x.total)}</b>Reclamos de Pies</div></div></article>`}).join('')}</div>${total===0?'<p class="claim-empty-note">Todavía no hay reclamos en este período.</p>':''}`:'<p class="empty">No hay manicuras visibles en este ranking.</p>';
+ const hidden=claimHiddenNames.length?`<details class="claim-hidden-panel"><summary>Manicuras ocultas (${claimHiddenNames.length})</summary><div class="claim-hidden-list">${claimHiddenNames.map(name=>`<span class="claim-hidden-item">${esc(name)}<button class="claim-restore" data-a="claimRestore" data-name="${esc(name)}">Mostrar</button></span>`).join('')}</div></details>`:'';
+ const selectedCount=claimRecords.filter(x=>claimSelected.has(x.id)).length,visibleCount=claimVisibleRecords(period).length;
+ const report=`<section class="glass card claim-report"><h3>Ranking de reclamos · ${periodLabel}</h3><p class="sub claim-report-intro">Solo aparecen manicuras con reclamos cargados. Cada tarjeta muestra su puesto, proporción del total y detalle circular entre Manos y Pies.</p>${chart}${hidden}</section>`;
+ return `<div class="head hd"><div><h2>Reclamos</h2><p>Seguimiento por manicura y tipo de servicio.</p></div><div class="xb"><button class="btn" data-a="claimNew">+ Nuevo reclamo</button></div></div>
+ <div class="tools">${[['day','Hoy'],['week','Esta semana'],['month','Este mes'],['all','Todo']].map(([v,l])=>`<button class="chip ${claimPeriod===v?'on':''}" data-a="claimPeriod" data-v="${v}">${l}</button>`).join('')}</div>
+ <div class="cards"><div class="glass card"><h3>Reclamos · ${periodLabel}</h3><p><b>${total}</b> total</p></div><div class="glass card"><h3>Manos</h3><p><b>${hand}</b> · ${claimRate(hand,total)} del total</p></div><div class="glass card"><h3>Pies</h3><p><b>${foot}</b> · ${claimRate(foot,total)} del total</p></div></div>
+ ${report}<div class="glass card claim-share"><h3>Enviar reporte por WhatsApp</h3><p class="sub">Marcá uno o varios reclamos del listado. El mensaje incluirá clienta, fechas, manicura, tipo de servicio y la observación con la respuesta brindada.</p><div class="claim-share-actions"><button class="btn o" data-a="claimSelectVisible" ${visibleCount?'':'disabled'}>Seleccionar visibles (${visibleCount})</button><button class="btn o" data-a="claimClearSelection" ${selectedCount?'':'disabled'}>Limpiar selección</button><button class="btn wa" data-a="claimWhatsApp" ${selectedCount?'':'disabled'}>Preparar WhatsApp (${selectedCount})</button></div><p class="sub claim-selection-status" id="claimSelectionStatus" aria-live="polite">${selectedCount?`${selectedCount} reclamo${selectedCount===1?' seleccionado':'s seleccionados'} para el reporte.`:'Todavía no seleccionaste reclamos.'}</p></div><div class="tools"><input id="claimSearch" type="search" placeholder="Buscar clienta, manicura u observación…" value="${esc(claimQuery)}"></div><div class="glass card"><h3>Detalle de reclamos · ${periodLabel}</h3><div id="claimList">${claimRows(period)}</div></div>`;
+}
+function openClaim(x){
+ const editing=!!x,v=x||{client:'',manicurist:'',serviceDate:supplyToday(),claimDate:supplyToday(),area:'Manos',observations:''};
+ const names=[...new Set([...claimRecords.map(r=>r.manicurist),...dpeople()].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'}));
+ show(`<h2>${editing?'Editar reclamo':'Nuevo reclamo'}</h2><label>Nombre y apellido de la clienta<input id="claimClient" value="${esc(v.client)}" placeholder="Nombre y apellido"></label><label>Manicura que la atendió<input id="claimManicurist" list="claimManicurists" value="${esc(v.manicurist)}" placeholder="Nombre de la manicura"><datalist id="claimManicurists">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist></label><label>Tipo de servicio<select id="claimArea"><option ${v.area==='Manos'?'selected':''}>Manos</option><option ${v.area==='Pies'?'selected':''}>Pies</option></select></label><label>Fecha del servicio<input id="claimServiceDate" type="date" value="${esc(v.serviceDate)}"></label><label>Fecha del reclamo<input id="claimDate" type="date" value="${esc(v.claimDate)}"></label><label>Observación y respuesta brindada<textarea id="claimObservations" rows="4" placeholder="Contá qué ocurrió y qué se le respondió a la clienta. Podés incluir ambas cosas en el mismo texto.">${esc(v.observations)}</textarea></label><p class="er" id="er"></p><div class="row"><button class="btn o" id="no">Cancelar</button><button class="btn" id="ok">Guardar reclamo</button></div>`,()=>{
+  const rec={client:$('#claimClient').value.trim(),manicurist:$('#claimManicurist').value.trim(),area:$('#claimArea').value,serviceDate:$('#claimServiceDate').value,claimDate:$('#claimDate').value,observations:$('#claimObservations').value.trim()};
+  if(Object.values(rec).some(v=>!v)){$('#er').textContent='Completá todos los campos para guardar el reclamo.';return}
+  const b=writeBatch(db);if(editing)b.update(doc(db,'serviceClaims',x.id),rec);else b.set(doc(collection(db,'serviceClaims')),{...rec,createdAt:Date.now()});
+  b.commit().catch(fail);toast(editing?'Reclamo actualizado':'Reclamo guardado');dlg.close();
+ });
+}
+function deliveryView(){
+ const opt=(list,cur,all)=>`<option value="Todos">${all}</option>${list.map(x=>`<option ${norm(cur)===norm(x)?'selected':''}>${esc(x)}</option>`).join('')}`;
+ return `<div class="head hd"><div><h2>Registro de Entregas</h2><p>Lo que repongo y entrego cada día: a quién, en qué sector y con qué detalle.</p></div><div class="xb"><button class="btn" data-a="dnew">+ Nueva entrega</button><button class="btn o" data-a="dimp">⬆ Importar Excel</button><button class="btn o" data-a="dexp">⬇ Exportar</button></div></div>
+ <div class="car"><div class="chips" style="padding:4px 2px;-webkit-mask-image:none;mask-image:none">${[['hoy','Hoy'],['7','7 días'],['mes','Este mes'],['30','30 días'],['all','Todo']].map(([v,l])=>`<button class="chip ${dl.rng===v&&!dl.from&&!dl.to?'on':''}" data-a="drng" data-v="${v}">${l}</button>`).join('')}</div></div>
+ <div class="tools"><input id="dq" type="search" placeholder="Buscar producto, persona u observación…" value="${esc(dl.q)}"><select id="dsec" aria-label="Sector">${opt(dsectors(),dl.sec,'Todos los sectores')}</select><select id="dper" aria-label="Persona">${opt(dpeople(),dl.per,'Todas las personas')}</select>
+ <label class="df">Desde<input id="dfrom" type="date" value="${esc(dl.from)}"></label><label class="df">Hasta<input id="dto" type="date" value="${esc(dl.to)}"></label><button class="btn o" data-a="dclr">Limpiar</button></div><div id="dbody">${dBody()}</div>`;
+}
+function openDelivery(x){
+ const e=!!x,v=x||{date:supplyToday(),qty:1,product:'',to:dl.lastTo||'',sector:dl.lastSector||'Manos',note:''},dlist=(id,a)=>`<datalist id="${id}">${a.map(i=>`<option value="${esc(i)}">`).join('')}</datalist>`;
+ show(`<h2>${e?'Editar entrega':'Nueva entrega'}</h2>
+ <label>Fecha<input id="fd" type="date" value="${esc(v.date)}"></label><p class="sub" style="margin:4px 0 0">Se completa con la fecha de hoy. Cambiala para cargar una anterior.</p>
+ <label>Cantidad<input id="fq" type="number" min="1" value="${v.qty}" inputmode="numeric"></label>
+ <label>Producto<input id="fp" list="dpl" value="${esc(v.product)}" placeholder="Ej: Limas, Top coat, 783 Meline…" autocomplete="off">${dlist('dpl',dprods())}</label>
+ <label>Entregado a<input id="ft" list="dtl" value="${esc(v.to)}" placeholder="Quién lo recibe" autocomplete="off">${dlist('dtl',dpeople())}</label>
+ <label>Sector<input id="fs" list="dsl" value="${esc(v.sector)}" placeholder="Manos, Pies, Esmalte…" autocomplete="off">${dlist('dsl',dsectors())}</label>
+ <label>Observaciones<textarea id="fo" rows="3" placeholder="Opcional">${esc(v.note)}</textarea></label>
+ <p class="er" id="er"></p><div class="row"><button class="btn o" id="no">Cancelar</button>${e?'':'<button class="btn o" id="ok2">Guardar y agregar otra</button>'}<button class="btn" id="ok">Guardar</button></div>`,()=>save(false));
+ function save(more){
+  const date=$('#fd').value,qty=parseInt($('#fq').value),product=canonIn(dprods(),$('#fp').value),to=canonIn(dpeople(),$('#ft').value,tcase),sector=canonIn(dsectors(),$('#fs').value,tcase)||'Sin sector',note=$('#fo').value.trim();
+  if(!date){$('#er').textContent='Elegí la fecha.';return}
+  if(!product){$('#er').textContent='Escribí el producto entregado.';return}
+  if(!(qty>=1)){$('#er').textContent='La cantidad tiene que ser 1 o más.';return}
+  const rec={date,qty,product,to,sector,note},b=writeBatch(db);
+  if(e)b.update(doc(db,'deliveries',x.id),rec);else b.set(doc(collection(db,'deliveries')),{...rec,createdAt:Date.now()});
+  b.commit().catch(fail);dl.lastTo=to;dl.lastSector=sector;toast(e?'Entrega actualizada':'Entrega guardada');
+  if(more&&!e){$('#fq').value=1;$('#fp').value='';$('#fo').value='';$('#er').textContent='';$('#fp').focus()}else dlg.close();
+ }
+ if(!e)$('#ok2').onclick=()=>save(true);
+}
+async function exportDeliveries(){
+ if(!window.ExcelJS){toast('Necesitás conexión a internet para exportar');return}
+ try{
+  const wb=new ExcelJS.Workbook();wb.creator='Nel System by Nelson Carrizo';
+  const cs=[['Fecha',16,'center'],['Cantidad',12,'center'],['Producto',34,'left'],['Entregado a',20,'left'],['Sector',16,'left'],['Observaciones',48,'left']],ws=sheetBase(wb,'Entregas','Registro de entregas',cs);
+  [...D].sort((a,b)=>a.date.localeCompare(b.date)||(Number(a.createdAt)||0)-(Number(b.createdAt)||0)).forEach((x,i)=>addRow(ws,[dfmt(x.date),x.qty,x.product,x.to,x.sector,x.note||''],i,cs));
+  await saveWb(wb,`Nel System-entregas-${supplyToday()}.xlsx`);toast('Excel descargado');
+ }catch(e){console.error(e);toast('No se pudo crear el Excel')}
+}
+async function readDeliveries(f){
+ const wb=XLSX.read(await f.arrayBuffer()),out=[];
+ const toDate=v=>{if(typeof v==='number'&&v>20000)return new Date(Math.round((v-25569)*864e5)).toISOString().slice(0,10);
+  const s=String(v).trim();let m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+  if(m){let y=+m[3];if(y<100)y+=2000;return `${y}-${String(+m[2]).padStart(2,'0')}-${String(+m[1]).padStart(2,'0')}`}
+  m=s.match(/^\d{4}-\d{2}-\d{2}/);return m?m[0]:''};
+ wb.SheetNames.forEach(sn=>{
+  const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:''}),hi=rows.findIndex(r=>r.some(c=>/^producto/.test(norm(c))));if(hi<0)return;
+  const H=rows[hi].map(norm),col=w=>H.findIndex(h=>w.some(x=>h.includes(x)));
+  const iF=col(['fecha']),iQ=col(['cantidad','cant']),iP=col(['producto']),iT=col(['entrega','recibe']),iS=col(['sector']),iO=col(['observ','nota','detalle']);let last='';
+  rows.slice(hi+1).forEach(a=>{
+   const d=iF>=0?toDate(a[iF]):'';if(d)last=d;
+   const product=String(a[iP]??'').trim();if(!product)return;
+   const q=iQ>=0?parseInt(a[iQ]):NaN;
+   out.push({date:last||supplyToday(),qty:isNaN(q)||q<1?1:q,product,to:iT>=0?String(a[iT]??'').trim():'',sector:iS>=0?String(a[iS]??'').trim():'',note:iO>=0?String(a[iO]??'').trim():''})})});
+ return out;
+}
+function openDeliveryImport(rows){
+ const dates=rows.map(r=>r.date).sort();
+ show(`<h2>Importar entregas</h2><p>Se leyeron <b>${rows.length}</b> entregas${dates.length?` del ${dfmt(dates[0])} al ${dfmt(dates[dates.length-1])}`:''}.</p><p class="sub">Si una fecha está vacía, se usa la del renglón anterior. Las entregas idénticas a otras ya cargadas se omiten, así podés volver a importar sin duplicar.</p>
+ <div class="row"><button class="btn o" id="no">Cancelar</button><button class="btn" id="ok">Importar</button></div>`,async()=>{
+  dlg.close();
+  const k2=x=>[x.date,x.qty,x.product,x.to,x.sector,x.note].map(norm).join('|'),have=new Set(D.map(k2)),pe=dpeople(),se=dsectors(),pr=dprods(),list=[];let skip=0;
+  rows.forEach(r=>{const o={...r,product:canonIn(pr,r.product),to:canonIn(pe,r.to,tcase),sector:canonIn(se,r.sector,tcase)||'Sin sector'};
+   [[pr,o.product],[pe,o.to],[se,o.sector]].forEach(([a,v])=>{if(v&&!a.some(x=>norm(x)===norm(v)))a.push(v)});
+   const k=k2(o);if(have.has(k)){skip++;return}have.add(k);list.push(o)});
+  try{const base=Date.now();for(let i=0;i<list.length;i+=400){const b=writeBatch(db);list.slice(i,i+400).forEach((o,j)=>b.set(doc(collection(db,'deliveries')),{...o,createdAt:base+i+j}));await b.commit()}
+   toast(`Importadas: ${list.length}${skip?` · Omitidas por repetidas: ${skip}`:''}`)}catch(e){fail(e)}
+ });
+}
+function deliveryAct(a,id,v){
+ if(a==='dnew')return openDelivery();
+ if(a==='dedit'){const x=D.find(y=>y.id===id);if(x)openDelivery(x);return}
+ if(a==='ddel'){const x=D.find(y=>y.id===id);if(x&&confirm(`¿Eliminar la entrega de ${x.qty} × ${x.product}${x.to?' a '+x.to:''}?`)){const b=writeBatch(db);b.delete(doc(db,'deliveries',id));b.commit().catch(fail);toast('Entrega eliminada')}return}
+ if(a==='dexp')return exportDeliveries();
+ if(a==='dimp')return $('#df').click();
+ if(a==='dmore'){dl.lim+=60;render();return}
+ if(a==='dclr'){Object.assign(dl,{q:'',sec:'Todos',per:'Todos',rng:'all',from:'',to:'',lim:60});render();return}
+ if(a==='drng'){dl.rng=v;dl.from='';dl.to='';dl.lim=60;render()}
+}
+$('#df').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
+ try{const r=await readDeliveries(f);r.length?openDeliveryImport(r):toast('No encontré entregas. Revisá los títulos: Fecha, Cantidad, Producto, Entrega, Sector, Observaciones')}catch(x){console.error(x);toast('No se pudo leer el archivo')}};
+
+/* ---------- Alertas de stock mínimo ---------- */
+const plab=p=>`${p.brand} · ${p.name} · ${p.type} · ${SEC[p.section]}`;
+function alertsView(){
+ const srt2=(a,b)=>a.brand.localeCompare(b.brand,'es')||a.name.localeCompare(b.name,'es',{numeric:true});
+ const act=stockAlertGroups(false).sort((a,b)=>(needs(b)-needs(a))||a.qty-b.qty||srt2(a,b));
+ const row=p=>{const k=p.qty<1?['bad','Agotado']:isLow(p)?['warn','Bajo mínimo']:['ok','OK'];
+  return `<div class="mv alr-row"><span class="cn">${bmark(p.brand)}<span><b>${esc(p.name)}</b><small>${esc(p.brand)} · ${esc(p.type)} · ${p.sections.map(s=>SEC[s]).join(' · ')}</small></span></span><span class="alr-st"><span class="pill ${k[0]}">${k[1]}</span><small>Stock ${p.qty} · mínimo ${minOf(p)}</small></span><span><button class="ib" data-a="amin" data-id="${p.id}" data-key="${esc(p.groupKey)}" title="Cambiar el mínimo" aria-label="Cambiar el mínimo">${ico('edit')}</button><button class="ib d" data-a="aoff" data-id="${p.id}" data-key="${esc(p.groupKey)}" title="Quitar la alerta" aria-label="Quitar la alerta">${ico('del')}</button></span></div>`};
+ return `<div class="head hd"><div><h2>Alertas de stock</h2><p>Elegí un esmalte y desde qué cantidad querés que te avise, antes de que llegue a cero.</p></div><div class="xb"><button class="btn wa" data-a="wa"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.9 7L4 20l1.1-4.9A8 8 0 1 1 21 12z"/></svg>Enviar pedido por WhatsApp</button></div></div>
+ <div class="glass card"><h3>Nueva alerta</h3><div class="alr-form"><label>Esmalte<input id="an" list="apl" placeholder="Escribí la marca o el nombre…" autocomplete="off"><datalist id="apl">${[...P].sort(srt2).map(p=>`<option value="${esc(plab(p))}">`).join('')}</datalist></label>
+ <label>Stock mínimo<input id="am" type="number" min="1" value="3" inputmode="numeric"></label><button class="btn" data-a="aadd">Activar alerta</button></div>
+ <p class="sub" style="margin:12px 0 0">Te avisa cuando queden <b>menos</b> unidades que el mínimo. Ej.: mínimo 3 → avisa con 2, 1 o 0. Aparece en rojo en el Resumen y se quita sola cuando repongas.</p><p class="er" id="aer"></p></div>
+ <div class="glass card"><h3>Alertas activas <small class="mn">${act.length}</small></h3>${act.map(row).join('')||'<p class="empty">Todavía no configuraste ninguna. También podés tocar la campana de cada esmalte en Reposición.</p>'}</div>`;
+}
+function openMin(p,members=[p]){
+ show(`<h2>Stock mínimo</h2><p>${esc(p.name)} · ${esc(p.brand)} (hay ${p.qty})</p>
+ <label>Avisarme cuando haya menos de<input id="mm" type="number" min="0" value="${minOf(p)||3}" inputmode="numeric"></label>
+ <p class="sub" style="margin:6px 0 0">Ej.: 3 → te avisa con 2, 1 o 0 unidades. Poné 0 para quitar la alerta.</p>
+ <div class="row"><button class="btn o" id="no">Cancelar</button><button class="btn" id="ok">Guardar</button></div>`,()=>{
+  const m=Math.max(0,parseInt($('#mm').value)||0),b=writeBatch(db);members.forEach(x=>b.update(doc(db,'polishes',x.id),{min:m}));b.commit().catch(fail);toast(m?`Alerta: mínimo ${m}`:'Alerta quitada');dlg.close()});
+}
+function alertAct(a,id,groupKey){
+ if(a==='wa')return openWhatsApp();
+ if(a==='aadd'){const v=$('#an').value.trim(),m=parseInt($('#am').value),er=$('#aer');
+  let p=P.find(x=>plab(x)===v);
+  if(!p&&v){const c=P.filter(x=>norm(plab(x)).includes(norm(v)));if(c.length===1)p=c[0]}
+  if(!p){er.textContent=v?'No encontré ese esmalte o hay varios parecidos. Elegilo de la lista.':'Elegí un esmalte de la lista.';return}
+  if(!(m>=1)){er.textContent='El mínimo tiene que ser 1 o más.';return}
+  const b=writeBatch(db);b.update(doc(db,'polishes',p.id),{min:m});b.commit().catch(fail);toast(`Alerta activada: ${p.name} (mínimo ${m})`);return}
+ const p=P.find(x=>x.id===id);if(!p)return;const members=groupKey?P.filter(x=>polishKey(x)===groupKey):[p];
+ if(a==='aoff'){if(confirm(`¿Quitar la alerta de ${p.name}?`)){const b=writeBatch(db);members.forEach(x=>b.update(doc(db,'polishes',x.id),{min:0}));b.commit().catch(fail);toast('Alerta quitada')}return}
+ openMin(p,members);
+}
+
+/* ---------- Pedido por WhatsApp ---------- */
+let PU={name:'Gabriela Vicario',phone:''};
+const repStock=p=>P.filter(x=>x.section==='rep'&&norm(x.brand)===norm(p.brand)&&norm(x.name)===norm(p.name)).reduce((a,x)=>a+x.qty,0);
+const waItems=()=>stockAlertGroups().sort((a,b)=>(a.section==='rep'?0:1)-(b.section==='rep'?0:1)||a.brand.localeCompare(b.brand,'es')||a.name.localeCompare(b.name,'es',{numeric:true}));
+function waMsg(name,items){
+ const by={};items.forEach(p=>(by[canonPolishBrand(p.brand)]??=[]).push(p));
+ const bs=Object.keys(by).sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'})),z=items.filter(p=>p.qty<1).length,l=items.length-z;
+ let t=`Hola${name?` ${name}`:''}!\nEl sistema *Nel System* detectó estos esmaltes con stock bajo:\n`;
+ bs.forEach(b=>{t+=`\n*${b}*\n`;by[b].sort((x,y)=>x.name.localeCompare(y.name,'es',{numeric:true})).forEach(p=>{t+=`• ${p.name}\n`})});
+ return t+`\nTotal: ${items.length} esmalte${items.length===1?'':'s'} (${z} sin stock, ${l} con stock bajo).\n\nQue tengas un buen día.\nSaludos cordiales.
+
+Enviado por Nel System.`;
+}
+function openWhatsApp(){
+ const items=waItems();if(!items.length){toast('No hay esmaltes en falta para avisar');return}
+ const sel=new Set(items.map(p=>p.id)),bs=[...new Set(items.map(p=>p.brand))].sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'}));
+ show(`<h2>Pedido por WhatsApp</h2><p>Armá el aviso para quien se encarga de las compras.</p>
+ <label>Nombre de quien compra<input id="wn" value="${esc(PU.name)}" autocomplete="off"></label>
+ <label>WhatsApp (con código de país, sin + ni espacios)<input id="wp" value="${esc(PU.phone)}" placeholder="Ej: 5493815551234" inputmode="tel" autocomplete="off"></label>
+ <p class="sub" style="margin:4px 0 0">Si lo dejás vacío, WhatsApp te deja elegir el contacto. Se guarda para la próxima.</p>
+ <label>Esmaltes a incluir (${items.length})</label><div class="wa-list">${bs.map(b=>`<div class="wa-b">${esc(b)}</div>${items.filter(p=>p.brand===b).sort((x,y)=>x.name.localeCompare(y.name,'es',{numeric:true})).map(p=>`<label class="wa-i"><input type="checkbox" data-id="${p.id}" checked><span>${esc(p.name)} <small>${esc(p.type)}${p.section==='uso'?' · en uso':''}</small></span><em class="${p.qty<1?'z':'l'}">${p.qty<1?'Stock 0':`${p.qty}${minOf(p)?' · mín. '+minOf(p):''}`}</em></label>`).join('')}`).join('')}</div>
+ <label>Mensaje (podés editarlo)</label><textarea id="wm" rows="10"></textarea>
+ <p class="er" id="er"></p><div class="row"><button class="btn o" id="no">Cancelar</button><button class="btn o" id="wc">Copiar mensaje</button><button class="btn wa" id="ok">Abrir WhatsApp</button></div>`,()=>{
+  const msg=$('#wm').value.trim(),ph=($('#wp').value||'').replace(/\D/g,'');
+  if(!sel.size||!msg){$('#er').textContent='Elegí al menos un esmalte.';return}
+  savePU();const url=`https://wa.me/${ph.length>=10?ph:''}?text=${encodeURIComponent(msg)}`;
+  if(url.length>7500){$('#er').textContent='El mensaje es muy largo para abrirlo directo. Sacá algunos esmaltes o usá “Copiar mensaje”.';return}
+  window.open(url,'_blank','noopener');toast('Abriendo WhatsApp…');dlg.close()});
+ dlg.classList.add('wide');dlg.addEventListener('close',()=>dlg.classList.remove('wide'),{once:true});
+ const refresh=()=>{$('#wm').value=waMsg($('#wn').value.trim(),items.filter(p=>sel.has(p.id)))};
+ dlg.querySelectorAll('.wa-i input').forEach(i=>i.onchange=()=>{i.checked?sel.add(i.dataset.id):sel.delete(i.dataset.id);refresh()});
+ $('#wn').oninput=refresh;refresh();
+ function savePU(){PU={name:$('#wn').value.trim()||PU.name,phone:($('#wp').value||'').replace(/\D/g,'')};const b=writeBatch(db);b.set(doc(db,'settings','purchaser'),PU,{merge:true});b.commit().catch(()=>{})}
+ $('#wc').onclick=async()=>{try{await navigator.clipboard.writeText($('#wm').value);savePU();toast('Mensaje copiado')}catch(e){$('#wm').select();toast('Seleccioné el texto, copialo con Ctrl+C')}};
+}
+
+/* ---------- Eventos ---------- */
+const sidebarEl=$('.side'),sidebarShell=sidebarEl?.closest('.shell');
+if(sidebarEl&&sidebarShell&&!$('#sideToggle')){
+ const sideToggle=document.createElement('button');
+ sideToggle.id='sideToggle';sideToggle.type='button';sideToggle.className='side-toggle';
+ sideToggle.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>';
+ const mobileDock=matchMedia('(max-width:760px)');let compact=false,mobileCompact=false;try{compact=localStorage.getItem('nel-stock-sidebar-collapsed')==='1';mobileCompact=localStorage.getItem('nel-stock-mobile-dock-collapsed')==='1'}catch{}
+ if(compact)sidebarShell.classList.add('sidebar-collapsed');
+  if(mobileDock.matches&&mobileCompact){sidebarEl.classList.add('mobile-dock-collapsed');sidebarShell.classList.add('mobile-dock-collapsed');document.body.classList.add('mobile-dock-collapsed')}
+  const syncSideToggle=()=>{const mobile=mobileDock.matches,expanded=mobile?!sidebarEl.classList.contains('mobile-dock-collapsed'):!sidebarShell.classList.contains('sidebar-collapsed'),label=expanded?'Plegar barra inferior':'Desplegar barra inferior';sideToggle.title=label;sideToggle.setAttribute('aria-label',label);sideToggle.setAttribute('aria-expanded',String(expanded))};
+ sidebarEl.append(sideToggle);syncSideToggle();
+  sideToggle.onclick=()=>{if(mobileDock.matches){const collapsed=sidebarEl.classList.toggle('mobile-dock-collapsed');sidebarShell.classList.toggle('mobile-dock-collapsed',collapsed);document.body.classList.toggle('mobile-dock-collapsed',collapsed);try{localStorage.setItem('nel-stock-mobile-dock-collapsed',collapsed?'1':'0')}catch{}}else{const collapsed=sidebarShell.classList.toggle('sidebar-collapsed');try{localStorage.setItem('nel-stock-sidebar-collapsed',collapsed?'1':'0')}catch{}}syncSideToggle()};
+  mobileDock.addEventListener('change',e=>{if(e.matches){let saved=false;try{saved=localStorage.getItem('nel-stock-mobile-dock-collapsed')==='1'}catch{}sidebarEl.classList.toggle('mobile-dock-collapsed',saved);sidebarShell.classList.toggle('mobile-dock-collapsed',saved);document.body.classList.toggle('mobile-dock-collapsed',saved)}else{document.body.classList.remove('mobile-dock-collapsed')}syncSideToggle()});
+}
+$('#add').onclick=openAdd;
+
+$('#tabs').onclick=e=>{const t=e.target.closest('[data-t]')?.dataset.t;if(t&&canOpenTab(t)){tab=t;brand='Todas';if(t==='uso')srt='brand';$('#chips')?.scrollTo(0,0);type='Todos';stat='Todos';lim=20;render()}};
+$('#main').onclick=e=>{
+  const t=e.target.closest('[data-brand],[data-days],[data-a],[data-more],[data-sc],[data-go],#voucherDownload,#voucherWhatsApp');if(!t)return;
+  if(t.id==='voucherDownload'){downloadVoucher();return}
+  if(t.id==='voucherWhatsApp'){shareVoucherWhatsApp();return}
+  if(t.dataset.a==='gestionPanel'){if(canOpenTab(t.dataset.v)){gestionPanel=t.dataset.v;render()}return}
+  if(t.dataset.a==='paymentNew'){openPaymentForm();return}
+  if(t.dataset.a==='paymentStaffAdd'){const input=$('#paymentStaffName'),name=input?.value.trim();if(!name){toast('Escribí el nombre y apellido');return}savePaymentStaff([...paymentStaff,name]).then(()=>{if(input)input.value='';render()}).catch(fail);return}
+  if(t.dataset.a==='paymentStaffRemove'){const name=t.dataset.name;if(confirm('¿Quitar '+name+' de los nombres guardados?'))savePaymentStaff(paymentStaff.filter(x=>x!==name)).then(render).catch(fail);return}
+  if(t.dataset.a==='laserWhatsApp'){shareLaserAvailability();return}
+  if(t.dataset.a==='laserSave'){if(t.hasAttribute('data-laser-add')){readLaserDraftFromDOM();const mins=laserDraft.map(x=>{const[h,m]=x.time.split(':').map(Number);return h*60+m}),next=mins.length?Math.max(...mins)+15:720;laserDraft.push({time:String(Math.floor(next/60)).padStart(2,'0')+':'+String(next%60).padStart(2,'0'),clientName:'',zones:'',observation:''});laserDraft.sort((a,b)=>a.time.localeCompare(b.time));render();return}if(t.hasAttribute('data-laser-remove')){readLaserDraftFromDOM();const i=Number(t.dataset.laserRemove);laserDraft.splice(i,1);laserSelected=new Set([...laserSelected].filter(n=>n!==i).map(n=>n>i?n-1:n));render();return}if(t.hasAttribute('data-laser-save')){saveLaserSchedule();return}return}
+  if(t.dataset.a==='paymentEdit'){const x=payments.find(r=>r.id===t.dataset.id);if(x)openPaymentForm(x);return}
+  if(t.dataset.a==='paymentDelete'){const x=payments.find(r=>r.id===t.dataset.id);if(x&&confirm(`¿Eliminar el pago de ${x.name||'esta manicura'}?`))deleteDoc(doc(db,'payments',x.id)).then(()=>toast('Pago eliminado')).catch(fail);return}
+  if(t.dataset.a==='paymentsWhatsApp'){sharePaymentsImage();return}
+ if(t.dataset.a==='claimHide'||t.dataset.a==='claimRestore'){
+  const name=t.dataset.name||'',key=norm(name);
+  if(t.dataset.a==='claimHide'&&!claimHiddenNames.some(x=>norm(x)===key))claimHiddenNames=[...claimHiddenNames,name];
+  if(t.dataset.a==='claimRestore')claimHiddenNames=claimHiddenNames.filter(x=>norm(x)!==key);
+  saveClaimHiddenNames();render();return
+ }
+ if(t.dataset.a==='claimSelectVisible'){claimVisibleRecords(claimsForPeriod()).forEach(x=>claimSelected.add(x.id));render();return}
+ if(t.dataset.a==='claimClearSelection'){claimSelected.clear();render();return}
+ if(t.dataset.a==='claimWhatsApp'){
+  const selected=claimRecords.filter(x=>claimSelected.has(x.id)).sort((a,b)=>String(a.claimDate||'').localeCompare(String(b.claimDate||''))||(Number(a.createdAt)||0)-(Number(b.createdAt)||0));
+  if(!selected.length){toast('Seleccioná al menos un reclamo');return}
+  const url=`https://wa.me/?text=${encodeURIComponent(claimReportMessage(selected))}`;
+  if(url.length>7500){toast('El reporte es muy largo. Seleccioná menos reclamos para abrirlo en WhatsApp.');return}
+  window.open(url,'_blank','noopener');toast(`Reporte preparado con ${selected.length} reclamo${selected.length===1?'':'s'}`);return
+ }
+ if(t.dataset.a==='claimNew'){openClaim();return}
+ if(t.dataset.a==='claimEdit'){const x=claimRecords.find(r=>r.id===t.dataset.id);if(x)openClaim(x);return}
+ if(t.dataset.a==='claimDelete'){const x=claimRecords.find(r=>r.id===t.dataset.id);if(x&&confirm(`¿Eliminar el reclamo de ${x.client}?`))deleteDoc(doc(db,'serviceClaims',x.id)).then(()=>toast('Reclamo eliminado')).catch(fail);return}
+ if(t.dataset.a==='claimPeriod'){claimPeriod=t.dataset.v;claimQuery='';render();return}
+ if(t.dataset.go){tab=t.dataset.go;q=t.dataset.q||'';brand='Todas';type='Todos';stat='Todos';ing='Todos';if(tab==='uso')srt='brand';lim=20;render();scrollTo({top:0,behavior:'smooth'});return}
+  if(['dnew','dedit','ddel','dexp','dimp','dmore','dclr','drng'].includes(t.dataset.a)){deliveryAct(t.dataset.a,t.dataset.id,t.dataset.v);return}
+   if(t.dataset.a==='newSupplyArea'){openNewSupplyArea();return}
+  if(t.dataset.a==='editSupplyList'){openSupplyList();return}
+  if(t.dataset.a==='saveSupplyControl'){saveSupplyControl();return}
+  if(t.dataset.a==='supplyPresence'){const a=currentSupplyArea(),d=supplyDraftFor(a);d.items[t.dataset.id].present=t.dataset.value==='yes';supplyDirty[a.id]=true;render();return}
+   if(t.dataset.a==='orderAdd'){addOrderItem();return}
+   if(t.dataset.a==='orderRemove'){removeOrderItem(t.dataset.group,t.dataset.id);return}
+   if(t.dataset.a==='orderContactSave'){saveOrderContact().then(()=>toast('Contacto de insumos guardado')).catch(fail);return}
+   if(t.dataset.a==='orderWhatsApp'){openOrderWhatsApp();return}
+   if(t.dataset.a==='orderCopy'){copyOrderMessage();return}
+ if(t.dataset.a==='clr'){q='';type='Todos';stat='Todos';ing='Todos';srt=tab==='uso'?'brand':'new';brand='Todas';lim=20;render();return}
+ if(t.dataset.a==='clogo'){openLogo(t.dataset.v);return}
+ if(t.dataset.a==='ximp'){impSec=tab;$('#xf').click();return}
+ if(t.dataset.a==='xexp'){exportXls(tab);return}
+ if(t.dataset.a==='xtpl'){template(tab);return}
+ if(['aadd','amin','aoff','minset','wa'].includes(t.dataset.a)){alertAct(t.dataset.a,t.dataset.id,t.dataset.key);return}
+ if(['cadd','cren','cdel'].includes(t.dataset.a)){catAct(t.dataset.a,t.dataset.k,t.dataset.v);return}
+ if(t.dataset.sc){$('#chips').scrollBy({left:t.dataset.sc*240,behavior:'smooth'});return}
+ if(t.dataset.brand){brand=t.dataset.brand;lim=20;render()}
+ else if(t.dataset.days){days=+t.dataset.days;render()}
+ else if('more'in t.dataset){lim+=20;list()}
+   else if(t.dataset.a==='undoUseImport'){openUndoUseImport()}
+   else{const p=P.find(x=>x.id===t.dataset.id);if(!p)return;({edit:()=>openEdit(p),out:()=>openOut(p),plus:()=>openPlus(p),del:()=>remove(p),replenish:()=>replenishFromRepo(p),putToUse:()=>openOut(p)})[t.dataset.a]?.()}
+};
+$('#main').oninput=e=>{
+ if(e.target.id==='voucherAutoText'){
+  voucherAutoText=e.target.value;const parsed={};
+  const source=voucherAutoText.replace(/\r\n?/g,'\n');
+  const label=/(^|[\s|;,])((?:n\s*(?:[º°o.]|ro)?(?:\s+interno)?(?:\s+de\s+factura)?|n[uú]mero(?:\s+interno)?(?:\s+de\s+factura)?|factura(?:\s+n\s*(?:[º°o.]|ro)?)?|para|de|valor(?:\s*\/\s*servicio)?|servicio))\s*[:\-]\s*/gim;
+  const matches=[...source.matchAll(label)];
+  for(let i=0;i<matches.length;i++){
+   const match=matches[i],start=match.index+match[0].length,end=i+1<matches.length?matches[i+1].index:source.length;
+   const labelText=match[2].toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[º°.,]/g,'').replace(/\s+/g,'');
+   const value=source.slice(start,end).replace(/[\s|;,]+$/,'').trim();if(!value)continue;
+   const field=/^(n|nro|numero|factura)/.test(labelText)?'number':labelText==='para'?'to':labelText==='de'?'from':'value';if(!parsed[field])parsed[field]=value;
+  }
+  const names={number:'Nº interno',to:'Para',from:'De',value:'Valor'},found=[];
+  if(Object.keys(parsed).length){for(const key of ['number','to','from','value']){voucherDraft[key]=parsed[key]||'';const input=$(`#voucher${key==='number'?'Number':key==='to'?'To':key==='from'?'From':'Value'}`);if(input)input.value=voucherDraft[key]}for(const key of Object.keys(parsed))found.push(names[key])}
+  voucherAutoMessage=!voucherAutoText.trim()?'Al pegar el texto con De:, Para:, Valor: o Servicio: y Nº: (una etiqueta por línea o separadas por espacios), se completan los campos automáticamente. Después podés revisarlos o corregirlos.':found.length?`Detecté ${found.join(', ')}. Revisá los campos y completá los que falten.`:'Todavía no detecté campos. Usá etiquetas con dos puntos, por ejemplo: De: Mariana Para: Julieta Servicio: Manos y pies semi.';
+  const status=$('#voucherAutoMessage');if(status)status.textContent=voucherAutoMessage;drawVoucherCanvas();return
+ }
+ if(['voucherNumber','voucherTo','voucherFrom','voucherValue'].includes(e.target.id)){voucherDraft[e.target.id==='voucherNumber'?'number':e.target.id==='voucherTo'?'to':e.target.id==='voucherFrom'?'from':'value']=e.target.value;drawVoucherCanvas();return}
+ if(e.target.id==='claimSearch'){claimQuery=e.target.value;$('#claimList').innerHTML=claimRows(claimsForPeriod());updateClaimShareControls();return}
+ if(e.target.id==='dq'){dl.q=e.target.value;dl.lim=60;$('#dbody').innerHTML=dBody();return}
+ if(e.target.id==='q'){q=e.target.value;lim=20;list();return}
+  if(e.target.id==='orderContactName'||e.target.id==='orderContactPhone'){orderContact={...orderContact,name:$('#orderContactName')?.value.trim()||'',phone:($('#orderContactPhone')?.value||'').replace(/\D/g,'')};refreshOrderPreview();return}
+ if(['supplyDate','supplyReviewer','supplyNote'].includes(e.target.id)){const a=currentSupplyArea(),d=supplyDraftFor(a);if(e.target.id==='supplyDate')d.date=e.target.value;if(e.target.id==='supplyReviewer')d.reviewer=e.target.value;if(e.target.id==='supplyNote')d.note=e.target.value;supplyDirty[a.id]=true;return}
+ if(e.target.hasAttribute('data-supply-qty')){const a=currentSupplyArea(),d=supplyDraftFor(a);d.items[e.target.dataset.supplyQty].qty=e.target.value;supplyDirty[a.id]=true}
+};
+$('#main').onchange=e=>{
+  if(e.target.id==='laserDate'){readLaserDraftFromDOM();laserDate=e.target.value||localDate();laserDraftDate='';render();return}
+  if(e.target.matches('[data-laser-field="time"]')){readLaserDraftFromDOM();render();return}
+  if(e.target.matches('[data-laser-select]')){const i=Number(e.target.dataset.laserSelect);if(e.target.checked)laserSelected.add(i);else laserSelected.delete(i);return}
+  if(e.target.id==='paymentDate'){paymentDate=e.target.value||localDate();render();return}
+ if(e.target.matches('[data-claim-select]')){const id=e.target.dataset.claimSelect;if(e.target.checked)claimSelected.add(id);else claimSelected.delete(id);updateClaimShareControls();return}
+ if(['dsec','dper','dfrom','dto'].includes(e.target.id)){const k={dsec:'sec',dper:'per',dfrom:'from',dto:'to'}[e.target.id];dl[k]=e.target.value;if(k==='from'||k==='to')dl.rng='';dl.lim=60;render();return}
+ if(e.target.id==='supplyArea'){supplyAreaId=e.target.value;render();return}
+  if(e.target.hasAttribute('data-order-check')){const id=e.target.dataset.orderCheck;if(e.target.checked)orderSelected.add(id);else orderSelected.delete(id);refreshOrderPreview();saveOrderState().catch(fail);return}
+  if(['supplyDate','supplyReviewer','supplyNote'].includes(e.target.id)||e.target.hasAttribute('data-supply-qty')){const a=currentSupplyArea(),d=supplyDraftFor(a);if(e.target.id==='supplyDate')d.date=e.target.value;if(e.target.id==='supplyReviewer')d.reviewer=e.target.value;if(e.target.id==='supplyNote')d.note=e.target.value;if(e.target.hasAttribute('data-supply-qty'))d.items[e.target.dataset.supplyQty].qty=e.target.value;supplyDirty[a.id]=true;return}
+ if(e.target.id==='brandFilter'){brand=e.target.value;lim=20;list();return}
+ const m={ty:v=>type=v,stt:v=>stat=v,ing:v=>ing=v,srt:v=>srt=v}[e.target.id];if(m){m(e.target.value);lim=20;list()}
+};
