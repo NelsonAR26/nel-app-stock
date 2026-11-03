@@ -242,7 +242,7 @@ function readVoucherForm(){
  error.textContent='';return true;
 }
 function voucherBlob(){return new Promise(resolve=>$('#voucherCanvas')?.toBlob(resolve,'image/png'))}
-function voucherFileName(){return `Voucher-Nel System-${(voucherDraft.number||'sin-factura').replace(/[^a-zA-Z0-9_-]/g,'_')}.png`}
+function voucherFileName(){return `Voucher-NicSys Core-${(voucherDraft.number||'sin-factura').replace(/[^a-zA-Z0-9_-]/g,'_')}.png`}
 async function createVoucherFile(){const ok=await drawVoucherCanvas();if(!ok)return null;const blob=await voucherBlob();if(!blob){$('#voucherError').textContent='No se pudo preparar la imagen. Revisá que la plantilla esté disponible.';return null}return new File([blob],voucherFileName(),{type:'image/png'})}
 async function prepareVoucher(){if(!readVoucherForm())return null;return createVoucherFile()}
 async function downloadVoucher(){
@@ -250,11 +250,11 @@ async function downloadVoucher(){
 }
 async function shareVoucherWhatsApp(){
  if(!readVoucherForm())return;
- const buyer=voucherDraft.from.trim();const message=`Hola ${buyer} ♥,\n\nGracias por tu compra de un voucher de Nel System. Recordá presentarlo en recepción o enviarlo el día que solicites tu turno.\n\nEnviado por Nel System.`;
+ const buyer=voucherDraft.from.trim();const message=`Hola ${buyer} ♥,\n\nGracias por tu compra de un voucher de NicSys Core. Recordá presentarlo en recepción o enviarlo el día que solicites tu turno.\n\nEnviado por NicSys Core.`;
  const canNativeShare=navigator.share&&navigator.canShare?.({files:[new File(['voucher'],'voucher.png',{type:'image/png'})]});
  const whatsappWindow=canNativeShare?null:window.open('about:blank','_blank');
  const file=await createVoucherFile();if(!file){whatsappWindow?.close();return}
- if(canNativeShare){try{await navigator.share({files:[file],title:'Voucher Nel System',text:message});toast('Elegí WhatsApp y el contacto para compartir el voucher');return}catch(e){if(e?.name==='AbortError')return;console.warn('No se pudo compartir el archivo desde el dispositivo.',e)}}
+ if(canNativeShare){try{await navigator.share({files:[file],title:'Voucher NicSys Core',text:message});toast('Elegí WhatsApp y el contacto para compartir el voucher');return}catch(e){if(e?.name==='AbortError')return;console.warn('No se pudo compartir el archivo desde el dispositivo.',e)}}
  const link=document.createElement('a');link.href=URL.createObjectURL(file);link.download=file.name;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1500);
  const url=`https://wa.me/?text=${encodeURIComponent(message)}`;if(whatsappWindow)whatsappWindow.location.href=url;else window.location.href=url;
  $('#voucherError').textContent='Se descargó la imagen y abrimos el chat. Adjuntá el archivo descargado en WhatsApp para enviarlo.';
@@ -281,11 +281,11 @@ async function sharePaymentsImage(){
  const wrap=(text,max,font)=>{c.font=font;const out=[];String(text||'').split(/\r?\n/).forEach(paragraph=>{const words=paragraph.split(/\s+/).filter(Boolean);if(!words.length){out.push('');return}let line='';words.forEach(word=>{let candidate=line?line+' '+word:word;if(c.measureText(candidate).width<=max){line=candidate;return}if(line){out.push(line);line=''}if(c.measureText(word).width<=max){line=word;return}let part='';[...word].forEach(ch=>{if(part&&c.measureText(part+ch).width>max){out.push(part);part=ch}else part+=ch});line=part});if(line)out.push(line)});return out.length?out:['']};
  const prepared=rows.map(x=>{const weekly=Number(x.weekly||0),attendance=Number(x.attendance||0),cash=Number(x.paid||0),transfer=Number(x.toPay||0),total=weekly+attendance,nameLines=wrap(x.name||'Sin nombre',320,'bold 22px Arial'),noteLines=String(x.observation||'').trim()?wrap(String(x.observation).trim(),320,'16px Arial'):[],rowH=Math.max(88,32+nameLines.length*26+(noteLines.length?8+noteLines.length*21:0)),method=cash>0&&transfer>0?'Efectivo + transferencia':cash>0?'Efectivo':transfer>0?'Transferencia':'Sin pago';return{x,weekly,attendance,cash,transfer,total,nameLines,noteLines,rowH,method}});
  const headerH=310,totalsH=92,footerH=52;canvas.width=width;canvas.height=headerH+prepared.reduce((n,r)=>n+r.rowH,0)+totalsH+footerH; c.fillStyle='#fbf7ef';c.fillRect(0,0,width,canvas.height);
- c.fillStyle='#315348';c.fillRect(0,0,width,220);c.fillStyle='#fff';c.textAlign='left';c.font='bold 50px Arial';c.fillText('PAGOS · NelSys Core',55,72);c.font='bold 19px Arial';c.textAlign='right';c.fillText('By Nelson Carrizo ®',width-55,64);c.textAlign='left';c.font='bold 27px Arial';c.fillText(new Date(paymentDate+'T12:00:00').toLocaleDateString('es-AR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}),55,126);c.font='20px Arial';c.fillText('Fecha de envío: '+new Date(localDate()+'T12:00:00').toLocaleDateString('es-AR'),55,172);
+ c.fillStyle='#315348';c.fillRect(0,0,width,220);c.fillStyle='#fff';c.textAlign='left';c.font='bold 50px Arial';c.fillText('PAGOS · NicSys Core',55,72);c.font='bold 19px Arial';c.textAlign='right';c.fillText('By Nelson Carrizo ®',width-55,64);c.textAlign='left';c.font='bold 27px Arial';c.fillText(new Date(paymentDate+'T12:00:00').toLocaleDateString('es-AR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}),55,126);c.font='20px Arial';c.fillText('Fecha de envío: '+new Date(localDate()+'T12:00:00').toLocaleDateString('es-AR'),55,172);
  const heads=['NOMBRE / OBSERVACIÓN','MONTO SEMANAL','PRESENTISMO','TOTAL','EFECTIVO','TRANSFERENCIA','FORMA DE PAGO'];c.fillStyle='#315348';c.font='bold 18px Arial';heads.forEach((h,i)=>c.fillText(h,cols[i],270));c.fillStyle='#d9d1c4';c.fillRect(45,287,width-90,2);
  let y=headerH,total=0,cashTotal=0,transferTotal=0;prepared.forEach((r,i)=>{total+=r.total;cashTotal+=r.cash;transferTotal+=r.transfer;if(i%2===0){c.fillStyle='#efe8db';c.fillRect(35,y,width-70,r.rowH)}c.fillStyle='#29251f';c.textAlign='left';c.font='bold 22px Arial';r.nameLines.forEach((line,j)=>c.fillText(line,cols[0],y+29+j*26));c.fillStyle='#6e675e';c.font='16px Arial';r.noteLines.forEach((line,j)=>c.fillText(line,cols[0],y+29+r.nameLines.length*26+6+j*21));const baseline=y+r.rowH/2+7;c.fillStyle='#29251f';c.font='20px Arial';[r.weekly,r.attendance,r.total,r.cash,r.transfer].forEach((v,j)=>c.fillText(money(v),cols[j+1],baseline));c.font='bold 16px Arial';c.fillStyle=r.total===r.cash+r.transfer?'#246b43':'#7a5940';c.fillText(r.method,cols[6],baseline);y+=r.rowH});
- c.fillStyle='#315348';c.fillRect(35,y,width-70,totalsH);c.fillStyle='#fff';c.font='bold 22px Arial';c.textAlign='left';c.fillText('TOTALES',cols[0],y+55);[null,null,null,total,cashTotal,transferTotal].forEach((v,j)=>{if(v!==null){c.font='bold 21px Arial';c.fillText(money(v),cols[j],y+55)}});c.font='bold 16px Arial';c.fillText('Del día',cols[6],y+55);c.fillStyle='#315348';c.font='18px Arial';c.textAlign='center';c.fillText('Enviado por NelSys Core',width/2,canvas.height-18);c.textAlign='left';
- const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));if(!blob){toast('No se pudo preparar la imagen');return}const file=new File([blob],'pagos-'+paymentDate+'.png',{type:'image/png'});if(navigator.share&&navigator.canShare?.({files:[file]})){try{await navigator.share({files:[file],title:'Reporte de pagos NelSys Core',text:'Pagos del '+paymentDate+' · enviado el '+localDate()});return}catch(e){if(e?.name==='AbortError')return;console.warn(e)}}const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);window.open('https://wa.me/?text='+encodeURIComponent('Reporte de pagos '+paymentDate+', enviado el '+localDate()+'. La imagen quedó descargada para adjuntarla.'),'_blank','noopener');toast('Imagen descargada; adjuntala en WhatsApp')
+ c.fillStyle='#315348';c.fillRect(35,y,width-70,totalsH);c.fillStyle='#fff';c.font='bold 22px Arial';c.textAlign='left';c.fillText('TOTALES',cols[0],y+55);[null,null,null,total,cashTotal,transferTotal].forEach((v,j)=>{if(v!==null){c.font='bold 21px Arial';c.fillText(money(v),cols[j],y+55)}});c.font='bold 16px Arial';c.fillText('Del día',cols[6],y+55);c.fillStyle='#315348';c.font='18px Arial';c.textAlign='center';c.fillText('Enviado por NicSys Core',width/2,canvas.height-18);c.textAlign='left';
+ const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));if(!blob){toast('No se pudo preparar la imagen');return}const file=new File([blob],'pagos-'+paymentDate+'.png',{type:'image/png'});if(navigator.share&&navigator.canShare?.({files:[file]})){try{await navigator.share({files:[file],title:'Reporte de pagos NicSys Core',text:'Pagos del '+paymentDate+' · enviado el '+localDate()});return}catch(e){if(e?.name==='AbortError')return;console.warn(e)}}const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);window.open('https://wa.me/?text='+encodeURIComponent('Reporte de pagos '+paymentDate+', enviado el '+localDate()+'. La imagen quedó descargada para adjuntarla.'),'_blank','noopener');toast('Imagen descargada; adjuntala en WhatsApp')
 }
 function localDate(){const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
 function openPaymentForm(x=null){
@@ -342,9 +342,9 @@ function supplyView(){
 }
 const orderItemsSelected=()=>orderGroups.flatMap(g=>g.items.filter(x=>orderSelected.has(x.id)).map(x=>({...x,groupName:g.name})));
 const orderMessage=(name=orderContact.name)=>{
- const items=orderItemsSelected(),lines=[name?`Hola ${name}!`:'Hola!','Nel System te pasa de forma automática el pedido de insumos a comprar:',''];
+ const items=orderItemsSelected(),lines=[name?`Hola ${name}!`:'Hola!','NicSys Core te pasa de forma automática el pedido de insumos a comprar:',''];
  orderGroups.forEach(g=>{const selected=g.items.filter(x=>orderSelected.has(x.id));if(!selected.length)return;lines.push(`*${g.name}*`);selected.forEach(x=>lines.push(`• ${x.name}`));lines.push('')});
- return items.length?`${lines.join('\n').trim()}\n\nEnviado por Nel System`:`${name?`Hola ${name}!\n`:''}Marcá los insumos que necesitás para generar el pedido.`;
+ return items.length?`${lines.join('\n').trim()}\n\nEnviado por NicSys Core`:`${name?`Hola ${name}!\n`:''}Marcá los insumos que necesitás para generar el pedido.`;
 };
 function saveOrderState(){
  const b=writeBatch(db);
@@ -442,7 +442,7 @@ function resumen(){
  const zero=stockAlertGroups().sort((a,b)=>(a.qty<1?0:1)-(b.qty<1?0:1)||a.brand.localeCompare(b.brand,'es')||a.name.localeCompare(b.name,'es',{numeric:true})),z0=zero.filter(p=>p.qty<1).length,zl=zero.length-z0;
  const alerta=zero.length?`<div class="glass alert" role="alert"><div class="ah"><span class="ai" aria-hidden="true"><svg class="siren-icon" viewBox="0 0 96 96"><path class="siren-rays" d="m15 25-8-8m23-6-2-10m-23 34-10-3"/><path class="siren-base" d="M17 61h62l5 19q1 6-6 7H18q-7-1-6-7z"/><path class="siren-dome" d="M23 61V45q0-24 25-24t25 24v16z"/><path class="siren-gloss" d="M31 54V44q0-13 11-16"/><path class="siren-triangle" d="M63 15 91 59H49z"/><path class="siren-mark" d="M70 29v12m0 8v1"/></svg></span><div><h3>Esmaltes en falta</h3><p>${z0?`${z0} sin stock`:''}${z0&&zl?' · ':''}${zl?`${zl} bajo el mínimo`:''}. La alerta se quita sola cuando repongas.</p></div><button class="btn wa" data-a="wa"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.9 7L4 20l1.1-4.9A8 8 0 1 1 21 12z"/></svg>Enviar por WhatsApp</button></div><div class="al">${zero.map(p=>`<button class="ar ${p.qty<1?'missing':''}" data-go="${p.section}" data-q="${esc(p.name)}" title="Ir a ${SEC[p.section]}">${bmark(p.brand)}<span class="at"><b>${esc(p.name)}</b><small>${esc(p.brand)} · ${esc(p.type)} · ${p.sections.map(s=>SEC[s]).join(' · ')}${p.qty<1?' · EN FALTA':''}</small></span>${p.qty<1?'<span class="pill bad">Stock 0 · EN FALTA</span>':`<span class="pill warn">Quedan ${p.qty} · mín. ${minOf(p)}</span>`}</button>`).join('')}</div></div>`:'';
  const hoyN=D.filter(x=>x.date===supplyToday()),hero=`<div class="hero"><span class="hbadge">HOY</span><h3>${esc(new Date().toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'}).replace(/^./,c=>c.toUpperCase()))}</h3><p>${hoyN.length} entrega${hoyN.length===1?'':'s'} registrada${hoyN.length===1?'':'s'} hoy (${hoyN.reduce((a,x)=>a+x.qty,0)} unidades)${zero.length?` · ${zero.length} esmalte${zero.length===1?'':'s'} en falta`:''}.</p><div class="hbtn"><button class="hb" data-a="dnew">+ Nueva entrega</button><button class="hb o" data-go="uso" data-q="">Ver En uso</button></div></div>`;
- return `<div class="head"><h2>Resumen</h2><p>Así está el stock de Nel System hoy</p></div>${alerta}
+ return `<div class="head"><h2>Resumen</h2><p>Así está el stock de NicSys Core hoy</p></div>${alerta}
  <div class="stats"><div class="glass stat" style="--c:#C9A24D"><b>${sum('rep')}</b><span>unidades en reposición</span></div><div class="glass stat" style="--c:#2F6BFF"><b>${sum('uso')}</b><span>unidades en uso</span></div><div class="glass stat" style="--c:#2BA57A"><b>${new Set(P.map(p=>key(p))).size}</b><span>esmaltes distintos</span></div><div class="glass stat" style="--c:#E5536B"><b>${low.length}</b><span>con stock bajo o agotado</span></div></div>
  <div class="cards dashboard-primary">${hero}<div class="glass card"><h3>Unidades por marca</h3>${bl.length?`<div class="dn">${donut(bl)}${legend(bl)}</div>`:'<p class="empty">Cargá tus primeros esmaltes.</p>'}</div>
  <div class="glass card"><h3>Movimientos · 14 días</h3>${cols()}</div></div>
@@ -568,8 +568,8 @@ function sheetBase(wb,name,title,cols){
  cols.forEach((c,i)=>{ws.getColumn(i+1).width=c[1]});
  ws.mergeCells(`A1:${last}1`);ws.mergeCells(`A2:${last}2`);
  for(let r=1;r<=2;r++)for(let c=1;c<=n;c++)ws.getCell(r,c).fill=fill('FF273046');
- const t=ws.getCell('A1');t.value='NEL SYSTEM';t.font={name:'Georgia',size:24,bold:true,color:{argb:'FFFFFFFF'}};t.alignment={vertical:'middle',horizontal:'left',indent:1};ws.getRow(1).height=44;
- const u=ws.getCell('A2');u.value=`Nel System · by Nelson Carrizo   |   ${title}   |   ${new Date().toLocaleDateString('es-AR')}`;u.font={name:'Calibri',size:10,italic:true,color:{argb:'FFE3C08D'}};u.alignment={vertical:'middle',horizontal:'left',indent:1};ws.getRow(2).height=24;
+ const t=ws.getCell('A1');t.value='NicSys Core';t.font={name:'Georgia',size:24,bold:true,color:{argb:'FFFFFFFF'}};t.alignment={vertical:'middle',horizontal:'left',indent:1};ws.getRow(1).height=44;
+ const u=ws.getCell('A2');u.value=`NicSys Core · by Nelson Carrizo   |   ${title}   |   ${new Date().toLocaleDateString('es-AR')}`;u.font={name:'Calibri',size:10,italic:true,color:{argb:'FFE3C08D'}};u.alignment={vertical:'middle',horizontal:'left',indent:1};ws.getRow(2).height=24;
  ws.getRow(3).height=8;const h=ws.getRow(4);h.height=28;
  cols.forEach((c,i)=>{const x=h.getCell(i+1);x.value=c[0];x.font={name:'Calibri',bold:true,size:11,color:{argb:'FF273046'}};x.fill=fill('FFE3C08D');x.alignment={vertical:'middle',horizontal:c[2],indent:c[2]==='left'?1:0};x.border={bottom:{style:'medium',color:{argb:'FF273046'}}}});
  ws.autoFilter={from:'A4',to:`${last}4`};return ws;
@@ -585,7 +585,7 @@ async function saveWb(wb,name){
 async function exportXls(only){
  if(!window.ExcelJS){toast('Necesitás conexión a internet para exportar');return}
  try{
- const wb=new ExcelJS.Workbook();wb.creator='Nel System by Nelson Carrizo';
+ const wb=new ExcelJS.Workbook();wb.creator='NicSys Core by Nelson Carrizo';
  const cs=[['Nombre',32,'left'],['Marca',18,'left'],['Tipo',20,'left'],['Cantidad',12,'center'],['Estado',16,'center'],['Fecha de ingreso',18,'center'],['Última salida',18,'center']];
  (only?[only]:['rep','uso']).forEach(sec=>{
   const ws=sheetBase(wb,SEC[sec],`Stock de ${SEC[sec].toLowerCase()}`,cs);
@@ -596,7 +596,7 @@ async function exportXls(only){
  if(!only){const mc=[['Fecha',16,'center'],['Movimiento',15,'center'],['Esmalte',32,'left'],['Marca',18,'left'],['Tipo',20,'left'],['Cantidad',12,'center'],['Sección',16,'left']],wm=sheetBase(wb,'Movimientos','Historial de movimientos',mc);
  [...M].sort((a,b)=>b.at-a.at).forEach((m,i)=>{const r=addRow(wm,[fmt(m.at),m.kind==='in'?'Ingreso':'Retiro',m.name,m.brand,m.type,m.qty,SEC[m.section]],i,mc);r.getCell(2).font={name:'Calibri',size:11,bold:true,color:{argb:m.kind==='in'?'FF1E7A53':'FFA3303F'}}});
  }
- await saveWb(wb,`Nel System-${only==='uso'?'en-uso':only==='rep'?'reposicion':'stock'}-${new Date().toISOString().slice(0,10)}.xlsx`);toast('Excel descargado');
+ await saveWb(wb,`NicSys Core-${only==='uso'?'en-uso':only==='rep'?'reposicion':'stock'}-${new Date().toISOString().slice(0,10)}.xlsx`);toast('Excel descargado');
  }catch(e){console.error(e);toast('No se pudo crear el Excel')}
 }
 async function template(sec){
@@ -606,7 +606,7 @@ async function template(sec){
  for(let i=0;i<80;i++){const r=addRow(ws,['','','',''],i,cs),n=r.number;
   ws.getCell(n,3).dataValidation={type:'list',allowBlank:true,formulae:['"'+types().join(',')+'"']};
   ws.getCell(n,4).dataValidation={type:'whole',operator:'greaterThanOrEqual',allowBlank:true,formulae:[0]}}
- await saveWb(wb,sec==='uso'?'Plantilla-en-uso-Nel System.xlsx':sec==='rep'?'Plantilla-reposicion-Nel System.xlsx':'Plantilla-esmaltes-Nel System.xlsx');
+ await saveWb(wb,sec==='uso'?'Plantilla-en-uso-NicSys Core.xlsx':sec==='rep'?'Plantilla-reposicion-NicSys Core.xlsx':'Plantilla-esmaltes-NicSys Core.xlsx');
  }catch(e){console.error(e);toast('No se pudo crear la plantilla')}
 }
 async function readXls(f){
@@ -842,7 +842,7 @@ function claimRows(records){
 function claimReportMessage(records){
  const sentDate=claimDateLabel(supplyToday());
  const cases=records.map((x,i)=>`*RECLAMO ${i+1}*\n*Clienta:* — ${String(x.client||'').trim()||'Sin nombre cargado'}\n• *Fecha del servicio:* ${claimDateLabel(x.serviceDate)}\n• *Fecha del reclamo:* ${claimDateLabel(x.claimDate)}\n• *Manicura responsable:* ${String(x.manicurist||'').trim()||'No especificada'}\n• *Área del servicio:* ${String(x.area||'').trim()||'No especificada'}\n• *Observación y respuesta brindada:*\n${String(x.observations||'').trim()||'Sin detalle cargado.'}`).join('\n\n──────────────\n\n');
- return `*REPORTE DE RECLAMOS | NEL SYSTEM*\n*Fecha de envío:* ${sentDate}\n*Cantidad de casos:* ${records.length}\n\n${cases}\n\n_Enviado por Nel System._`;
+ return `*REPORTE DE RECLAMOS | NicSys Core*\n*Fecha de envío:* ${sentDate}\n*Cantidad de casos:* ${records.length}\n\n${cases}\n\n_Enviado por NicSys Core._`;
 }
 function updateClaimShareControls(){
  const selectedCount=claimRecords.filter(x=>claimSelected.has(x.id)).length,visibleCount=claimVisibleRecords(claimsForPeriod()).length;
@@ -912,10 +912,10 @@ function openDelivery(x){
 async function exportDeliveries(){
  if(!window.ExcelJS){toast('Necesitás conexión a internet para exportar');return}
  try{
-  const wb=new ExcelJS.Workbook();wb.creator='Nel System by Nelson Carrizo';
+  const wb=new ExcelJS.Workbook();wb.creator='NicSys Core by Nelson Carrizo';
   const cs=[['Fecha',16,'center'],['Cantidad',12,'center'],['Producto',34,'left'],['Entregado a',20,'left'],['Sector',16,'left'],['Observaciones',48,'left']],ws=sheetBase(wb,'Entregas','Registro de entregas',cs);
   [...D].sort((a,b)=>a.date.localeCompare(b.date)||(Number(a.createdAt)||0)-(Number(b.createdAt)||0)).forEach((x,i)=>addRow(ws,[dfmt(x.date),x.qty,x.product,x.to,x.sector,x.note||''],i,cs));
-  await saveWb(wb,`Nel System-entregas-${supplyToday()}.xlsx`);toast('Excel descargado');
+  await saveWb(wb,`NicSys Core-entregas-${supplyToday()}.xlsx`);toast('Excel descargado');
  }catch(e){console.error(e);toast('No se pudo crear el Excel')}
 }
 async function readDeliveries(f){
@@ -1001,11 +1001,11 @@ const waItems=()=>stockAlertGroups().sort((a,b)=>(a.section==='rep'?0:1)-(b.sect
 function waMsg(name,items){
  const by={};items.forEach(p=>(by[canonPolishBrand(p.brand)]??=[]).push(p));
  const bs=Object.keys(by).sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'})),z=items.filter(p=>p.qty<1).length,l=items.length-z;
- let t=`Hola${name?` ${name}`:''}!\nEl sistema *Nel System* detectó estos esmaltes con stock bajo:\n`;
+ let t=`Hola${name?` ${name}`:''}!\nEl sistema *NicSys Core* detectó estos esmaltes con stock bajo:\n`;
  bs.forEach(b=>{t+=`\n*${b}*\n`;by[b].sort((x,y)=>x.name.localeCompare(y.name,'es',{numeric:true})).forEach(p=>{t+=`• ${p.name}\n`})});
  return t+`\nTotal: ${items.length} esmalte${items.length===1?'':'s'} (${z} sin stock, ${l} con stock bajo).\n\nQue tengas un buen día.\nSaludos cordiales.
 
-Enviado por Nel System.`;
+Enviado por NicSys Core.`;
 }
 function openWhatsApp(){
  const items=waItems();if(!items.length){toast('No hay esmaltes en falta para avisar');return}
