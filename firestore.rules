@@ -214,12 +214,15 @@ service cloud.firestore {
     }
 
     function validLaserBooking(data) {
-      return hasOnly(data, ['date', 'time', 'firstName', 'lastName', 'updatedAt']) &&
+      return hasOnly(data, ['date', 'time', 'firstName', 'lastName', 'clientName', 'zones', 'observation', 'updatedAt']) &&
         hasRequired(data, ['date', 'time', 'firstName', 'lastName', 'updatedAt']) &&
         validDate(data, 'date') && data.time is string &&
         data.time.matches('^(1[2-9]:(00|15|30|45)|20:00)$') &&
         data.firstName is string && data.firstName.size() <= 80 &&
         data.lastName is string && data.lastName.size() <= 80 &&
+        optionalText(data, 'clientName', 120) &&
+        optionalText(data, 'zones', 160) &&
+        optionalText(data, 'observation', 240) &&
         validNumber(data, 'updatedAt', 0, 4102444800000);
     }
 
@@ -424,4 +427,3 @@ service cloud.firestore {
     }
   }
 }
-
