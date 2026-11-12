@@ -59,6 +59,33 @@ option{background:#2A3349;color:#fff}
 .use-actions{display:flex;justify-content:flex-end;align-items:center;gap:5px;flex-wrap:wrap}
 .use-action{font-size:12px;padding:7px 10px}
 .ac{white-space:nowrap;text-align:right}
+#main .tb:has(.use-state){table-layout:fixed}
+#main .tb:has(.use-state) th:nth-child(1),#main .tb:has(.use-state) td:nth-child(1){width:22%}
+#main .tb:has(.use-state) th:nth-child(2),#main .tb:has(.use-state) td:nth-child(2){width:14%}
+#main .tb:has(.use-state) th:nth-child(3),#main .tb:has(.use-state) td:nth-child(3){width:12%}
+#main .tb:has(.use-state) th:nth-child(4),#main .tb:has(.use-state) td:nth-child(4){width:20%}
+#main .tb:has(.use-state) th:nth-child(5),#main .tb:has(.use-state) td:nth-child(5){width:20%}
+#main .tb:has(.use-state) th:nth-child(6),#main .tb:has(.use-state) td:nth-child(6){width:12%}
+#main .tb:has(.use-state) td{min-width:0;overflow-wrap:anywhere}
+#main .tb:has(.use-state) .use-state{white-space:normal}
+#main .tb:has(.use-state) .nm{min-width:0}
+#main .tb:has(.use-state) .nm b{min-width:0;overflow-wrap:anywhere}
+@media(max-width:760px){
+ #main .tb:has(.use-state){display:block;width:100%;table-layout:auto;border-collapse:separate;border-spacing:0 8px}
+ #main .tb:has(.use-state) thead{display:none}
+ #main .tb:has(.use-state) tbody{display:grid;gap:8px}
+ #main .tb:has(.use-state) tbody tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;min-width:0;overflow:hidden;border:1px solid rgba(59,92,81,.14);border-radius:14px;background:rgba(255,253,248,.72)}
+ #main .tb:has(.use-state) tbody td{display:block;min-width:0;padding:8px 10px;border:0;white-space:normal;font-size:12px}
+ #main .tb:has(.use-state) tbody td::before{content:attr(data-l);display:block;margin-bottom:3px;color:var(--mute);font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+ #main .tb:has(.use-state) tbody td:first-child{grid-column:1/-1}
+ #main .tb:has(.use-state) tbody td:first-child::before{content:"Esmalte"}
+ #main .tb:has(.use-state) tbody td:last-child{grid-column:1/-1}
+ #main .tb:has(.use-state) tbody td:last-child::before{content:"Acciones"}
+ #main .tb:has(.use-state) .nm{gap:8px}
+ #main .tb:has(.use-state) .nm .bl{width:48px;height:32px}
+ #main .tb:has(.use-state) .use-actions{justify-content:flex-start}
+ #main .tb:has(.use-state) tr.row-missing{border-color:rgba(169,75,71,.32)}
+}
 .ib{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.1);margin-left:4px;display:inline-grid;place-items:center}.ib:hover{background:rgba(255,255,255,.26)}.ib.d:hover{color:#FF9AA8}.ib:disabled{opacity:.4;cursor:default}
 .ib svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .more{display:block;margin:12px auto 2px}

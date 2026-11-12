@@ -17,6 +17,8 @@ const key=x=>[x.name,canonPolishBrand(x.brand),x.type].map(norm).join('|');
 const polishKey=x=>[norm(x.name),norm(canonPolishBrand(x.brand)),norm(x.type)].join('|');
 const polishTypeKey=x=>[norm(x.name),norm(x.type)].join('|');
 const samePolish=(a,b)=>polishKey(a)===polishKey(b);
+const polishNameDistance=(a,b)=>{const x=norm(a),y=norm(b);let prev=Array.from({length:y.length+1},(_,i)=>i);for(let i=1;i<=x.length;i++){const row=[i];for(let j=1;j<=y.length;j++)row[j]=Math.min(row[j-1]+1,prev[j]+1,prev[j-1]+(x[i-1]===y[j-1]?0:1));prev=row}return prev[y.length]};
+const polishNameSuggestions=(name,type)=>{const n=norm(name);if(n.length<3)return[];const grouped=new Map();P.filter(p=>norm(p.type)===norm(type)).forEach(p=>{const k=polishTypeKey(p),g=grouped.get(k)||{...p,sections:[]};if(!g.sections.includes(p.section))g.sections.push(p.section);grouped.set(k,g)});return[...grouped.values()].map(p=>({...p,distance:polishNameDistance(n,p.name)})).filter(p=>p.distance<=Math.max(1,Math.floor(Math.max(n.length,norm(p.name).length)*.22))).sort((a,b)=>a.distance-b.distance||a.name.localeCompare(b.name,'es',{sensitivity:'base'})).slice(0,3)};
 const repoFor=p=>P.find(x=>x.section==='rep'&&samePolish(x,p)&&x.qty>0)||P.find(x=>x.section==='rep'&&samePolish(x,p));
 const hue=s=>Math.abs([...norm(s)].reduce((a,c)=>(a*31+c.charCodeAt(0))|0,7))%360;
 const BR=['OPI','Meline','Vanta','Masglo','Kamena','Navi','Angela Bresciano'];
@@ -510,7 +512,7 @@ const bindBrand=()=>{$('#b').onchange=()=>{$('#nbw').hidden=$('#b').value!=='__n
 const saveCat=(k,list)=>{const b=writeBatch(db);b.set(doc(db,'settings','catalog'),{[k]:list},{merge:true});return b.commit()};
 const ensureBrand=b=>{if(b&&!brands().some(x=>norm(x)===norm(b)))saveCat('brands',[...brands(),b]).catch(fail)};
 function openAdd(){
- show(`<h2>Nuevo esmalte</h2><label>Nombre<input id="n" list="polishNameOptions" placeholder="Ej: Big Apple Red" autocomplete="off"><datalist id="polishNameOptions">${[...new Set(P.filter(p=>p.section===(tab==='uso'?'uso':'rep')).map(p=>p.name))].sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'})).map(n=>`<option value="${esc(n)}">`).join('')}</datalist></label>${brandSel(brand!=='Todas'?brand:'')}
+ show(`<h2>Nuevo esmalte</h2><label>Nombre<input id="n" list="polishNameOptions" placeholder="Ej: Big Apple Red" autocomplete="off"><datalist id="polishNameOptions">${[...new Set(P.map(p=>p.name))].sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'})).map(n=>`<option value="${esc(n)}">`).join('')}</datalist></label><div id="polishNameMatches" class="col" hidden></div>${brandSel(brand!=='Todas'?brand:'')}
  <label>Tipo<select id="t">${types().map(t=>`<option>${esc(t)}</option>`).join('')}</select></label>
  <label>Cantidad<input id="c" type="number" min="1" value="1" inputmode="numeric"></label>
  <label>Stock mínimo (opcional)<input id="mn" type="number" min="0" value="0" inputmode="numeric"></label><p class="sub" style="margin:4px 0 0">Si querés una alerta en el Resumen cuando queden menos de esa cantidad. 0 = sin alerta.</p>
@@ -521,6 +523,10 @@ function openAdd(){
    const ex=P.find(p=>p.section===s&&polishTypeKey(p)===polishTypeKey({name,type:t}));
    if(ex){$('#er').innerHTML=`Ya está cargado como <b>${esc(ex.name)}</b> · <b>${esc(ex.type)}</b> en ${SEC[s]} (${esc(ex.brand)}, ${ex.qty} unidades). Usá ese nombre para evitar un duplicado y el botón “+” de esa fila para sumar stock.`;$('#n').value=ex.name;$('#n').focus();return}
   ensureBrand(b);addStock({name,brand:b,type:t,qty:c,section:s,min:Math.max(0,parseInt($('#mn').value)||0)});dlg.close()});
+ const input=$('#n'),typeSelect=$('#t'),matches=$('#polishNameMatches');
+ const updateSuggestions=()=>{const suggestions=polishNameSuggestions(input.value,typeSelect.value);matches.innerHTML=suggestions.map(p=>`<button type="button" class="btn o" data-polish-suggestion="${esc(p.name)}">¿${esc(p.name)}? · ${esc(p.type)} · ${p.sections.map(s=>SEC[s]).join(' · ')}</button>`).join('');matches.hidden=!suggestions.length};
+ input.addEventListener('input',updateSuggestions);typeSelect.addEventListener('change',updateSuggestions);
+ matches.addEventListener('click',e=>{const option=e.target.closest('[data-polish-suggestion]');if(!option)return;input.value=option.dataset.polishSuggestion;matches.hidden=true;$('#er').textContent='';input.focus()});
  bindBrand();
 }
 function openEdit(p){
