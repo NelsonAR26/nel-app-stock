@@ -68,6 +68,7 @@ option{background:#2A3349;color:#fff}
 #main .tb:has(.use-state) th:nth-child(6),#main .tb:has(.use-state) td:nth-child(6){width:12%}
 #main .tb:has(.use-state) td{min-width:0;overflow-wrap:anywhere}
 #main .tb:has(.use-state) .use-state{white-space:normal}
+#main .tb:has(.use-state) .use-state.empty{padding:5px 11px;text-align:left}
 #main .tb:has(.use-state) .nm{min-width:0}
 #main .tb:has(.use-state) .nm b{min-width:0;overflow-wrap:anywhere}
 @media(max-width:760px){
