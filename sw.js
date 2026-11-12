@@ -1,13 +1,14 @@
-const CACHE_NAME = 'nel-stock-v54';
+const CACHE_NAME = 'nel-stock-v55';
 const APP_SHELL = [
   './',
   'index.html',
   'manifest.webmanifest',
   'icon-192.png',
   'icon-512.png',
-  'src/styles.css',
+  'src/styles.css?v=physical-stock-20261112-1',
   'src/app.js',
   'src/admin.js',
+  'src/physical-stock.js?v=physical-stock-20261112-1',
   'voucher-template.png'
 ];
 

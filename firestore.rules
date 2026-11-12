@@ -5,6 +5,7 @@
 //   optional username/loginType/email and createdAt/updatedAt.
 // polishes/{id}: name, brand, type, section (rep/uso), qty, timestamps;
 //   optional min and importBatchId.
+// physicalStockChecks/{polishId}: polishId, name, brand, type, present, updatedAt.
 // movements/{id}: name, brand, type, section, kind, qty, at;
 //   optional pid, adj and importBatchId.
 // serviceClaims/{id}: client, manicurist, area, serviceDate, claimDate,
@@ -239,6 +240,19 @@ service cloud.firestore {
         validNumber(data, 'updatedAt', 0, 4102444800000);
     }
 
+    function validPhysicalStockCheck(id, data) {
+      let polishPath = /databases/$(database)/documents/polishes/$(id);
+      return hasOnly(data, [
+          'polishId', 'name', 'brand', 'type', 'present', 'updatedAt'
+        ]) && hasRequired(data, [
+          'polishId', 'name', 'brand', 'type', 'present', 'updatedAt'
+        ]) && data.polishId == id && validText(data, 'polishId', 150) &&
+        validText(data, 'name', 160) && validText(data, 'brand', 100) &&
+        validText(data, 'type', 100) && data.present is bool &&
+        validNumber(data, 'updatedAt', 0, 4102444800000) &&
+        exists(polishPath) && get(polishPath).data.section == 'uso';
+    }
+
     function validCatalog(data) {
       return hasOnly(data, ['types', 'brands', 'logos']) &&
         (!('types' in data) || (data.types is list && data.types.size() <= 100)) &&
@@ -399,6 +413,15 @@ service cloud.firestore {
       allow create: if can('payments', 'create') && validPayment(request.resource.data);
       allow update: if can('payments', 'edit') && validPayment(request.resource.data);
       allow delete: if can('payments', 'delete');
+    }
+
+    // Physical presence is stored separately so the existing polish inventory
+    // documents and their quantities remain unchanged.
+    match /physicalStockChecks/{id} {
+      allow get, list: if can('polishes', 'read');
+      allow create, update: if can('polishes', 'edit') &&
+        validPhysicalStockCheck(id, request.resource.data);
+      allow delete: if false;
     }
 
     match /settings/{id} {
