@@ -103,9 +103,8 @@ html{background:#A05E22}
 .ar.missing{background:#f2c5c1;border:1px solid #be2934;box-shadow:0 0 0 1px rgba(155,15,28,.25);animation:missingAlertPulse .95s ease-in-out infinite alternate}
 .ar.missing .at b,.ar.missing .at small{color:#70151d}.ar.missing .pill.bad{background:#a80f1d;color:#fff;box-shadow:0 0 16px rgba(185,15,30,.72)}
 @keyframes missingAlertPulse{from{box-shadow:0 0 0 1px rgba(155,15,28,.28),0 0 5px rgba(185,15,30,.24)}to{box-shadow:0 0 0 3px rgba(168,15,29,.72),0 0 21px rgba(220,22,38,.9),inset 0 0 12px rgba(194,20,32,.18)}}
-.tb tbody tr.row-missing td{color:#70151d;border-top-color:#bd5157;background:#f2cbc8;animation:missingRowPulse 1s ease-in-out infinite alternate}
-.tb tbody tr.row-missing td:first-child{border-left:5px solid #a60d1b}.tb tbody tr.row-missing:hover td{background:#eaa09c}
-@keyframes missingRowPulse{from{background-color:#f6d7d3;box-shadow:inset 0 0 0 1px rgba(150,18,28,.22),0 0 4px rgba(180,20,32,.16)}to{background-color:#ebaaa6;box-shadow:inset 0 0 0 2px rgba(142,9,22,.56),0 0 15px rgba(200,18,34,.65)}}
+.tb tbody tr.row-missing td{color:#793e3d;border-top-color:rgba(169,75,71,.24);background:#fff8f6;animation:none}
+.tb tbody tr.row-missing td:first-child{box-shadow:inset 3px 0 #c36a65}.tb tbody tr.row-missing:hover td{background:#fff2ef}
 .stats,.stats .stat{animation:none!important;opacity:1!important;transform:none!important}
 /* Keep alert animation scoped to missing-product rows; aggregate totals must never flash. */
 #main .stats,#main .stats *,#main .stat,#main .stat *{animation:none!important;opacity:1!important;transform:none!important}

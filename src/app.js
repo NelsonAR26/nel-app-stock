@@ -15,6 +15,7 @@ const norm=s=>String(s??'').toLowerCase().normalize('NFD').replace(/[\u0300-\u03
 const canonPolishBrand=b=>{const n=norm(b);return n==='city girl'||n==='city girls'?'City Girl':String(b??'').trim()};
 const key=x=>[x.name,canonPolishBrand(x.brand),x.type].map(norm).join('|');
 const polishKey=x=>[norm(x.name),norm(canonPolishBrand(x.brand)),norm(x.type)].join('|');
+const polishTypeKey=x=>[norm(x.name),norm(x.type)].join('|');
 const samePolish=(a,b)=>polishKey(a)===polishKey(b);
 const repoFor=p=>P.find(x=>x.section==='rep'&&samePolish(x,p)&&x.qty>0)||P.find(x=>x.section==='rep'&&samePolish(x,p));
 const hue=s=>Math.abs([...norm(s)].reduce((a,c)=>(a*31+c.charCodeAt(0))|0,7))%360;
@@ -37,7 +38,7 @@ const bmark=b=>{const l=logoOf(b);return l?`<span class="bl"><img src="${l}" alt
 const minOf=p=>Number(p.min)>0?Number(p.min):0;
 const isLow=p=>p.qty>=1&&minOf(p)>0&&p.qty<minOf(p);
 const needs=p=>p.qty<1||isLow(p);
-const stockAlertGroups=(onlyNeeding=true)=>{const groups=new Map();P.forEach(p=>{const k=polishKey(p);let g=groups.get(k);if(!g){g={items:[],min:0};groups.set(k,g)}g.items.push(p);g.min=Math.max(g.min,minOf(p))});return [...groups.values()].map(g=>{const depot=g.items.filter(p=>p.section==='rep'),stockItems=depot.length?depot:g.items,p=depot[0]||g.items[0],qty=stockItems.reduce((n,x)=>n+(Number(x.qty)||0),0),min=Math.max(...stockItems.map(minOf));return {...p,qty,min,sections:[...new Set(g.items.map(x=>x.section))],groupKey:polishKey(p),members:g.items}}).filter(g=>onlyNeeding?(g.qty<1||(g.min>0&&g.qty<g.min)):(g.qty<1||g.min>0))};
+const stockAlertGroups=(onlyNeeding=true,includeDefaultLow=false)=>{const groups=new Map();P.forEach(p=>{const k=polishTypeKey(p);let g=groups.get(k);if(!g){g={items:[],min:0};groups.set(k,g)}g.items.push(p);g.min=Math.max(g.min,minOf(p))});return [...groups.values()].map(g=>{const depot=g.items.filter(p=>p.section==='rep'),stockItems=depot.length?depot:g.items,p=depot[0]||g.items[0],qty=stockItems.reduce((n,x)=>n+(Number(x.qty)||0),0),min=Math.max(...stockItems.map(minOf));return {...p,qty,min,sections:[...new Set(g.items.map(x=>x.section))],groupKey:polishTypeKey(p),members:g.items}}).filter(g=>onlyNeeding?(g.qty<1||(g.min>0&&g.qty<g.min)):(g.qty<1||g.min>0||(includeDefaultLow&&g.section!=='uso'&&g.qty<=2)))};
 const st=p=>p.qty<1?['bad','Agotado']:(minOf(p)>0?p.qty<minOf(p):(p.section!=='uso'&&p.qty<=2))?['warn',minOf(p)>0?'Bajo mínimo':'Stock bajo']:['ok','Disponible'];
 
 let C={},P=[],M=[],claimRecords=[],laserBookings=[],laserDraft=[],laserSelected=new Set(),laserDraftDate="",payments=[],paymentStaff=["Celina Borquez","Florencia Bau","Gabriela Raval","Iris Robles","Lourdes Maidana","María José Chaparro","Natalia Trujillo","Pilar Salinas"],laserDate=(()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)})(),paymentDate='',gestionPanel='inf',claimPeriod='month',claimQuery='',claimHiddenNames=[],claimSelected=new Set(),movementReady=false,tab='res',brand='Todas',type='Todos',q='',days=30,lim=20,stat='Todos',ing='Todos',srt='new',unsub=[];
@@ -436,7 +437,7 @@ function saveSupplyControl(){
  b.commit().then(()=>{supplyChecks=[{id:ref.id,...record},...supplyChecks];supplyDrafts[area.id]=null;supplyDirty[area.id]=false;toast('Control guardado en el historial');render()}).catch(fail);
 }
 function resumen(){
- const sum=s=>P.filter(p=>p.section===s).reduce((a,p)=>a+p.qty,0),low=P.filter(p=>p.qty<1||(minOf(p)>0?p.qty<minOf(p):(p.section!=='uso'&&p.qty<=2))).sort((a,b)=>a.qty-b.qty);
+ const sum=s=>P.filter(p=>p.section===s).reduce((a,p)=>a+p.qty,0),low=stockAlertGroups(false,true).filter(p=>p.qty<1||(minOf(p)>0?p.qty<minOf(p):(p.section!=='uso'&&p.qty<=2))).sort((a,b)=>a.qty-b.qty);
  const grp=f=>{const m={};P.forEach(p=>m[f(p)]=(m[f(p)]||0)+p.qty);return Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([label,v])=>({label,v}))};
  const bl=grp(p=>p.brand),tl=grp(p=>p.type),tm=tl[0]?.v||1;
  const zero=stockAlertGroups().sort((a,b)=>(a.qty<1?0:1)-(b.qty<1?0:1)||a.brand.localeCompare(b.brand,'es')||a.name.localeCompare(b.name,'es',{numeric:true})),z0=zero.filter(p=>p.qty<1).length,zl=zero.length-z0;
@@ -509,7 +510,7 @@ const bindBrand=()=>{$('#b').onchange=()=>{$('#nbw').hidden=$('#b').value!=='__n
 const saveCat=(k,list)=>{const b=writeBatch(db);b.set(doc(db,'settings','catalog'),{[k]:list},{merge:true});return b.commit()};
 const ensureBrand=b=>{if(b&&!brands().some(x=>norm(x)===norm(b)))saveCat('brands',[...brands(),b]).catch(fail)};
 function openAdd(){
- show(`<h2>Nuevo esmalte</h2><label>Nombre<input id="n" placeholder="Ej: Big Apple Red"></label>${brandSel(brand!=='Todas'?brand:'')}
+ show(`<h2>Nuevo esmalte</h2><label>Nombre<input id="n" list="polishNameOptions" placeholder="Ej: Big Apple Red" autocomplete="off"><datalist id="polishNameOptions">${[...new Set(P.filter(p=>p.section===(tab==='uso'?'uso':'rep')).map(p=>p.name))].sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'})).map(n=>`<option value="${esc(n)}">`).join('')}</datalist></label>${brandSel(brand!=='Todas'?brand:'')}
  <label>Tipo<select id="t">${types().map(t=>`<option>${esc(t)}</option>`).join('')}</select></label>
  <label>Cantidad<input id="c" type="number" min="1" value="1" inputmode="numeric"></label>
  <label>Stock mínimo (opcional)<input id="mn" type="number" min="0" value="0" inputmode="numeric"></label><p class="sub" style="margin:4px 0 0">Si querés una alerta en el Resumen cuando queden menos de esa cantidad. 0 = sin alerta.</p>
@@ -517,22 +518,22 @@ function openAdd(){
  <p class="er" id="er"></p><div class="row"><button class="btn o" id="no">Cancelar</button><button class="btn" id="ok">Guardar</button></div>`,()=>{
   const name=$('#n').value.trim(),b=pickBrand().trim(),t=$('#t').value,c=parseInt($('#c').value)||0,s=$('#s').value;
   if(!name||!b||c<1){$('#er').textContent='Completá nombre, marca y una cantidad mayor a 0.';return}
-   const ex=P.find(p=>p.section===s&&polishKey(p)===polishKey({name,brand:b,type:t}));
-   if(ex){$('#er').innerHTML=`Este esmalte (<b>${esc(name)}</b> · <b>${esc(b)}</b>) ya está cargado en el sistema, en ${SEC[s]} con <b>${ex.qty}</b> unidades. Para sumar stock usá el botón “+” de esa fila.`;return}
+   const ex=P.find(p=>p.section===s&&polishTypeKey(p)===polishTypeKey({name,type:t}));
+   if(ex){$('#er').innerHTML=`Ya está cargado como <b>${esc(ex.name)}</b> · <b>${esc(ex.type)}</b> en ${SEC[s]} (${esc(ex.brand)}, ${ex.qty} unidades). Usá ese nombre para evitar un duplicado y el botón “+” de esa fila para sumar stock.`;$('#n').value=ex.name;$('#n').focus();return}
   ensureBrand(b);addStock({name,brand:b,type:t,qty:c,section:s,min:Math.max(0,parseInt($('#mn').value)||0)});dlg.close()});
  bindBrand();
 }
 function openEdit(p){
  show(`<h2>Editar esmalte</h2><p>${SEC[p.section]} · cargado el ${fmt(p.createdAt)}</p>
- <label>Nombre<input id="n" value="${esc(p.name)}"></label>${brandSel(p.brand)}
+ <label>Nombre<input id="n" list="polishNameOptions" value="${esc(p.name)}" autocomplete="off"><datalist id="polishNameOptions">${[...new Set(P.filter(x=>x.section===p.section&&norm(x.type)===norm(p.type)).map(x=>x.name))].sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'})).map(n=>`<option value="${esc(n)}">`).join('')}</datalist></label>${brandSel(p.brand)}
  <label>Tipo<select id="t">${types().map(t=>`<option ${t===p.type?'selected':''}>${esc(t)}</option>`).join('')}</select></label>
  <label>Cantidad en stock<input id="c" type="number" min="0" value="${p.qty}" inputmode="numeric"></label>
  <label>Stock mínimo para la alerta<input id="mn" type="number" min="0" value="${minOf(p)}" inputmode="numeric"></label><p class="sub" style="margin:4px 0 0">Te avisa en el Resumen cuando queden menos de esa cantidad. 0 = sin alerta.</p>
  <p class="er" id="er"></p><div class="row"><button class="btn o" id="no">Cancelar</button><button class="btn" id="ok">Guardar cambios</button></div>`,()=>{
   const name=$('#n').value.trim(),b=pickBrand().trim(),t=$('#t').value,c=parseInt($('#c').value);
   if(!name||!b||isNaN(c)||c<0){$('#er').textContent='Completá nombre y marca, y poné una cantidad válida (0 o más).';return}
-   const ex=P.find(x=>x.id!==p.id&&x.section===p.section&&polishKey(x)===polishKey({name,brand:b,type:t}));
-  if(ex){$('#er').innerHTML=`Ya existe <b>${esc(ex.name)}</b> (${esc(ex.brand)} · ${esc(ex.type)}) en ${SEC[p.section]} con ${ex.qty} unidades.`;return}
+   const ex=P.find(x=>x.id!==p.id&&x.section===p.section&&polishTypeKey(x)===polishTypeKey({name,type:t}));
+  if(ex){$('#er').innerHTML=`Ya existe <b>${esc(ex.name)}</b> (${esc(ex.type)}) en ${SEC[p.section]}, registrada como ${esc(ex.brand)} con ${ex.qty} unidades. Usá el nombre guardado para evitar duplicados.`;$('#n').value=ex.name;$('#n').focus();return}
   ensureBrand(b);const bt=writeBatch(db),upd={name,brand:b,type:t,min:Math.max(0,parseInt($('#mn').value)||0)};
   if(c!==p.qty){upd.qty=c;bt.set(doc(collection(db,'movements')),mv({...p,name,brand:b,type:t},c>p.qty?'in':'out',Math.abs(c-p.qty),Date.now(),{adj:true}))}
   bt.update(doc(db,'polishes',p.id),upd);bt.commit().catch(fail);toast('Cambios guardados');dlg.close()});
@@ -989,7 +990,7 @@ function alertAct(a,id,groupKey){
   if(!p){er.textContent=v?'No encontré ese esmalte o hay varios parecidos. Elegilo de la lista.':'Elegí un esmalte de la lista.';return}
   if(!(m>=1)){er.textContent='El mínimo tiene que ser 1 o más.';return}
   const b=writeBatch(db);b.update(doc(db,'polishes',p.id),{min:m});b.commit().catch(fail);toast(`Alerta activada: ${p.name} (mínimo ${m})`);return}
- const p=P.find(x=>x.id===id);if(!p)return;const members=groupKey?P.filter(x=>polishKey(x)===groupKey):[p];
+ const p=P.find(x=>x.id===id);if(!p)return;const members=groupKey?P.filter(x=>polishTypeKey(x)===groupKey):[p];
  if(a==='aoff'){if(confirm(`¿Quitar la alerta de ${p.name}?`)){const b=writeBatch(db);members.forEach(x=>b.update(doc(db,'polishes',x.id),{min:0}));b.commit().catch(fail);toast('Alerta quitada')}return}
  openMin(p,members);
 }
