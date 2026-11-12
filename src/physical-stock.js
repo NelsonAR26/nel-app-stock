@@ -16,6 +16,7 @@ function startListeners(next){
  unsubPolishes=onSnapshot(collection(db,'polishes'),s=>{polishes=s.docs.map(d=>({id:d.id,...d.data()})).filter(p=>p.section==='uso');refresh()},()=>{polishes=[];refresh()});
  unsubChecks=onSnapshot(collection(db,'physicalStockChecks'),s=>{checks=new Map(s.docs.map(d=>[d.id,d.data()]));refresh()},e=>{console.error(e);const msg=$('#physicalStockError');if(msg)msg.textContent='No se pudo leer el control físico. Revisá permisos o conexión.'});
 }
+function refresh(){mountUseButton();mountMasterExports();if(dialog?.open)renderRows()}
 
 function ensureDialog(){
  if(dialog)return dialog;
