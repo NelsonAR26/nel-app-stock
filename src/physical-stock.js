@@ -7,13 +7,13 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const norm=s=>String(s??'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
 const today=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
-let polishes=[],checks=new Map(),selectedBrand='Todas',query='',user=null,unsubPolishes=null,unsubChecks=null,dialog,saveBusy=new Set();
+let polishes=[],checks=new Map(),selectedSection='uso',selectedBrand='Todas',query='',user=null,unsubPolishes=null,unsubChecks=null,dialog,saveBusy=new Set();const sectionPolishes=()=>polishes.filter(p=>p.section===selectedSection);
 
 function canEdit(){const a=window.__nelSectionAccess;return !!(a?.admin||a?.permissions?.polishes?.edit)}
 function startListeners(next){
  unsubPolishes?.();unsubChecks?.();unsubPolishes=unsubChecks=null;polishes=[];checks.clear();user=next;
  if(!next){refresh();return}
- unsubPolishes=onSnapshot(collection(db,'polishes'),s=>{polishes=s.docs.map(d=>({id:d.id,...d.data()})).filter(p=>p.section==='uso');refresh()},()=>{polishes=[];refresh()});
+ unsubPolishes=onSnapshot(collection(db,'polishes'),s=>{polishes=s.docs.map(d=>({id:d.id,...d.data()})).filter(p=>p.section==='uso'||p.section==='rep');refresh()},()=>{polishes=[];refresh()});
  unsubChecks=onSnapshot(collection(db,'physicalStockChecks'),s=>{checks=new Map(s.docs.map(d=>[d.id,d.data()]));refresh()},e=>{console.error(e);const msg=$('#physicalStockError');if(msg)msg.textContent='No se pudo leer el control físico. Revisá permisos o conexión.'});
 }
 function refresh(){mountUseButton();mountMasterExports();if(dialog?.open)renderRows()}
@@ -31,18 +31,18 @@ function ensureDialog(){
 
 function refreshBrandOptions(){
  const select=$('#physicalBrandFilter');if(!select)return;
- const brands=[...new Set(polishes.map(p=>String(p.brand||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'}));
+ const brands=[...new Set(sectionPolishes().map(p=>String(p.brand||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'}));
  if(selectedBrand!=='Todas'&&!brands.includes(selectedBrand))selectedBrand='Todas';
- select.innerHTML='<option value="Todas">Todas las marcas</option>'+brands.map(b=>`<option value="${esc(b)}">${esc(b)} · ${polishes.filter(p=>p.brand===b).length}</option>`).join('');select.value=selectedBrand;
+ select.innerHTML='<option value="Todas">Todas las marcas</option>'+brands.map(b=>`<option value="${esc(b)}">${esc(b)} · ${sectionPolishes().filter(p=>p.brand===b).length}</option>`).join('');select.value=selectedBrand;
 }
 
 function renderRows(){
  const rows=$('#physicalStockRows');if(!rows)return;refreshBrandOptions();
- const filtered=polishes.filter(p=>(selectedBrand==='Todas'||p.brand===selectedBrand)&&norm(`${p.name} ${p.brand} ${p.type}`).includes(norm(query))).sort((a,b)=>String(a.brand).localeCompare(String(b.brand),'es',{sensitivity:'base'})||String(a.name).localeCompare(String(b.name),'es',{numeric:true}));
- const marked=polishes.filter(p=>checks.has(p.id)).length;
- const count=$('#physicalCount');if(count)count.textContent=`${filtered.length} esmaltes · ${marked}/${polishes.length} controlados`;
+ const filtered=sectionPolishes().filter(p=>(selectedBrand==='Todas'||p.brand===selectedBrand)&&norm(`${p.name} ${p.brand} ${p.type}`).includes(norm(query))).sort((a,b)=>String(a.brand).localeCompare(String(b.brand),'es',{sensitivity:'base'})||String(a.name).localeCompare(String(b.name),'es',{numeric:true}));
+ const marked=sectionPolishes().filter(p=>checks.has(p.id)).length;
+ const count=$('#physicalCount');if(count)count.textContent=`${filtered.length} esmaltes · ${marked}/${sectionPolishes().length} controlados`;
  if(!user){rows.innerHTML='<div class="ps-empty">Iniciá sesión para continuar el control.</div>';return}
- if(!polishes.length){rows.innerHTML='<div class="ps-empty">No hay esmaltes en En Uso.</div>';return}
+ if(!sectionPolishes().length){rows.innerHTML=`<div class="ps-empty">No hay esmaltes en ${selectedSection==='uso'?'En Uso':'Reposición'}.</div>`;return}
  rows.innerHTML=filtered.map(p=>{const state=checks.get(p.id),pending=saveBusy.has(p.id);return `<article class="ps-row"><span class="ps-brand" aria-hidden="true">${esc(String(p.brand||'').trim().slice(0,2).toUpperCase()||'ES')}</span><span class="ps-name"><b>${esc(p.name)}</b><small>${esc(p.brand)} · ${esc(p.type)}</small></span><span class="ps-status ${state?(state.present?'is-present':'is-missing'):'is-unchecked'}">${state?(state.present?'Presente':'Faltante'):'Sin revisar'}</span><span class="ps-actions"><button type="button" class="ps-choice ps-yes ${state?.present===true?'selected':''}" data-physical-id="${esc(p.id)}" data-present="true" aria-pressed="${state?.present===true}" ${pending||!canEdit()?'disabled':''}><span>✓</span> Presente</button><button type="button" class="ps-choice ps-no ${state?.present===false?'selected':''}" data-physical-id="${esc(p.id)}" data-present="false" aria-pressed="${state?.present===false}" ${pending||!canEdit()?'disabled':''}><span>×</span> Faltante</button></span><label class="ps-continuity-label">Continuidad<select data-continuity-id="${esc(p.id)}" ${pending||!canEdit()?'disabled':''}><option value="Continuado" ${state?.discontinued===true?'':'selected'}>Continuado</option><option value="Discontinuado" ${state?.discontinued===true?'selected':''}>Discontinuado</option></select></label></article>`}).join('')||'<div class="ps-empty">No hay esmaltes para este filtro.</div>';
  const error=$('#physicalStockError');if(error&&!canEdit())error.textContent='Tu cuenta puede consultar el control físico, pero no tiene permiso para cambiar estados.';
 }
@@ -56,10 +56,10 @@ async function saveContinuity(id,discontinued){if(!canEdit()||saveBusy.has(id))r
 }
 
 function mountUseButton(){
- const main=$('#main'),active=$('#tabs [data-t="uso"].on'),head=main?.querySelector('.head');
- if(!active||!head||!head.querySelector('h2')?.textContent.includes('Esmaltes en uso'))return;
+ const main=$('#main'),tabs=$('#tabs'),active=tabs?.querySelector('[data-t="uso"].on')||tabs?.querySelector('[data-t="rep"].on'),section=active?.dataset.t,head=main?.querySelector('.head'),title=head?.querySelector('h2')?.textContent||'';
+ if(!section||!head||!(section==='uso'?title.includes('Esmaltes en uso'):title.toLowerCase().includes('reposici')))return;
  const actions=head.querySelector('.xb');if(!actions||actions.querySelector('[data-physical-open]'))return;
- const button=document.createElement('button');button.type='button';button.className='btn o';button.dataset.physicalOpen='1';button.innerHTML='<span aria-hidden="true">◉</span> Control físico';button.setAttribute('aria-label','Abrir control físico de esmaltes');button.onclick=()=>{const current=$('#brandFilter')?.value;if(current&&current!=='Todas')selectedBrand=current;const d=ensureDialog();renderRows();if(!d.open)d.showModal()};actions.prepend(button);
+ const button=document.createElement('button');button.type='button';button.className='btn o';button.dataset.physicalOpen='1';button.innerHTML='<span aria-hidden="true">◉</span> Control físico';button.setAttribute('aria-label',`Abrir control físico de ${section==='uso'?'Esmaltes en Uso':'Reposición'}`);button.onclick=()=>{selectedSection=section;const current=section==='uso'?$('#brandFilter')?.value:'Todas';selectedBrand=current&&current!=='Todas'?current:'Todas';const d=ensureDialog();d.querySelector('.ps-eyebrow').textContent=section==='uso'?'NIC SYSTEM · EN USO':'NIC SYSTEM · REPOSICIÓN';renderRows();if(!d.open)d.showModal()};actions.prepend(button);
 }
 
 function reportRows(){return [...polishes].sort((a,b)=>String(a.brand).localeCompare(String(b.brand),'es',{sensitivity:'base'})||String(a.name).localeCompare(String(b.name),'es',{numeric:true})).map(p=>{const s=checks.get(p.id);return {name:p.name||'',brand:p.brand||'',type:p.type||'',status:s?(s.present?'Presente':'Faltante'):'Sin revisar',updatedAt:s?.updatedAt||null}})}
