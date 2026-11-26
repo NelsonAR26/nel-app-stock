@@ -56,7 +56,7 @@ async function saveContinuity(id,discontinued){if(!canEdit()||saveBusy.has(id))r
 }
 
 function mountUseButton(){
- const main=$('#main'),tabs=$('#tabs'),active=tabs?.querySelector('[data-t="uso"].on')||tabs?.querySelector('[data-t="rep"].on'),section=active?.dataset.t,head=main?.querySelector('.head'),title=head?.querySelector('h2')?.textContent||'';
+ const main=$('#main'),tabs=$('#tabs'),active=tabs?.querySelector('button.on'),label=active?.textContent.toLowerCase()||'',section=label.includes('reposici')?'rep':label.includes('en uso')?'uso':null,head=main?.querySelector('.head'),title=head?.querySelector('h2')?.textContent||'';
  if(!section||!head||!(section==='uso'?title.includes('Esmaltes en uso'):title.toLowerCase().includes('reposici')))return;
  const actions=head.querySelector('.xb');if(!actions||actions.querySelector('[data-physical-open]'))return;
  const button=document.createElement('button');button.type='button';button.className='btn o';button.dataset.physicalOpen='1';button.innerHTML='<span aria-hidden="true">◉</span> Control físico';button.setAttribute('aria-label',`Abrir control físico de ${section==='uso'?'Esmaltes en Uso':'Reposición'}`);button.onclick=()=>{selectedSection=section;const current=section==='uso'?$('#brandFilter')?.value:'Todas';selectedBrand=current&&current!=='Todas'?current:'Todas';const d=ensureDialog();d.querySelector('.ps-eyebrow').textContent=section==='uso'?'NIC SYSTEM · EN USO':'NIC SYSTEM · REPOSICIÓN';renderRows();if(!d.open)d.showModal()};actions.prepend(button);
