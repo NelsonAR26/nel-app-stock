@@ -5,7 +5,7 @@
 //   optional username/loginType/email and createdAt/updatedAt.
 // polishes/{id}: name, brand, type, section (rep/uso), qty, timestamps;
 //   optional min and importBatchId.
-// physicalStockChecks/{polishId}: polishId, name, brand, type, present, updatedAt.
+// physicalStockChecks/{polishId}: polishId, name, brand, type, optional present/discontinued, updatedAt.
 // movements/{id}: name, brand, type, section, kind, qty, at;
 //   optional pid, adj and importBatchId.
 // serviceClaims/{id}: client, manicurist, area, serviceDate, claimDate,
@@ -250,14 +250,17 @@ service cloud.firestore {
     function validPhysicalStockCheck(id, data) {
       let polishPath = /databases/$(database)/documents/polishes/$(id);
       return hasOnly(data, [
-          'polishId', 'name', 'brand', 'type', 'present', 'updatedAt'
+            'polishId', 'name', 'brand', 'type', 'present', 'discontinued', 'updatedAt'
         ]) && hasRequired(data, [
-          'polishId', 'name', 'brand', 'type', 'present', 'updatedAt'
+            'polishId', 'name', 'brand', 'type', 'updatedAt'
         ]) && data.polishId == id && validText(data, 'polishId', 150) &&
         validText(data, 'name', 160) && validText(data, 'brand', 100) &&
-        validText(data, 'type', 100) && data.present is bool &&
+          validText(data, 'type', 100) &&
+          (!('present' in data) || data.present is bool) &&
+          (!('discontinued' in data) || data.discontinued is bool) &&
+          (('present' in data) || ('discontinued' in data)) &&
         validNumber(data, 'updatedAt', 0, 4102444800000) &&
-        exists(polishPath) && get(polishPath).data.section == 'uso';
+          exists(polishPath) && get(polishPath).data.section in ['uso', 'rep'];
     }
 
     function validCatalog(data) {
