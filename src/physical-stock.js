@@ -47,10 +47,10 @@ function renderRows(){
  const error=$('#physicalStockError');if(error&&!canEdit())error.textContent='Tu cuenta puede consultar el control físico, pero no tiene permiso para cambiar estados.';
 }
 
-async function savePresence(id,present){
+async function saveContinuity(id,discontinued){if(!canEdit()||saveBusy.has(id))return;const p=polishes.find(x=>x.id===id);if(!p)return;saveBusy.add(id);renderRows();try{const updatedAt=Date.now(),b=writeBatch(db),data={polishId:id,name:String(p.name||''),brand:String(p.brand||''),type:String(p.type||''),discontinued,updatedAt};b.set(doc(db,'physicalStockChecks',id),data,{merge:true});await b.commit();checks.set(id,{...checks.get(id),...data});const error=$('#physicalStockError');if(error)error.textContent='Continuidad guardada en Firebase.'}catch(e){console.error(e);const error=$('#physicalStockError');if(error)error.textContent='No se pudo guardar la continuidad. Revisá permisos o conexión.'}finally{saveBusy.delete(id);renderRows()}}async function savePresence(id,present){
  if(!canEdit()||saveBusy.has(id))return;const p=polishes.find(x=>x.id===id);if(!p)return;
  saveBusy.add(id);renderRows();
- try{const b=writeBatch(db);b.set(doc(db,'physicalStockChecks',id),{polishId:id,name:String(p.name||''),brand:String(p.brand||''),type:String(p.type||''),present,updatedAt:Date.now()});await b.commit();checks.set(id,{polishId:id,name:p.name,brand:p.brand,type:p.type,present,updatedAt:Date.now()});const error=$('#physicalStockError');if(error)error.textContent='Guardado en Firebase.'}
+ try{const b=writeBatch(db);b.set(doc(db,'physicalStockChecks',id),{polishId:id,name:String(p.name||''),brand:String(p.brand||''),type:String(p.type||''),present,updatedAt:Date.now()},{merge:true});await b.commit();checks.set(id,{...checks.get(id),polishId:id,name:p.name,brand:p.brand,type:p.type,present,updatedAt:Date.now()});const error=$('#physicalStockError');if(error)error.textContent='Guardado en Firebase.'}
  catch(e){console.error(e);const error=$('#physicalStockError');if(error)error.textContent=e?.code==='permission-denied'?'Firebase no permitió guardar. Revisá las nuevas reglas y el permiso de edición de esmaltes.':'No se pudo guardar el cambio. Revisá la conexión e intentá de nuevo.'}
  finally{saveBusy.delete(id);renderRows()}
 }
